@@ -62,6 +62,46 @@ std::vector<std::tuple<int, int, int>> readCSV(const std::string &filename)
     return data;
 }
 
+// Dump to file the average, worst, best of the total costs
+bool dumpToFile(const std::string &input_file, const std::string &algorithm_type, const std::vector<std::vector<int>> &solutions, const std::vector<int> &totalCosts, const std::string &sn_type)
+{
+    // Get average, worst, best of the total costs
+    float average = std::accumulate(totalCosts.begin(), totalCosts.end(), 0) / totalCosts.size();
+
+    int worst_index = std::distance(totalCosts.begin(), std::max_element(totalCosts.begin(), totalCosts.end()));
+    int worst_cost = totalCosts[worst_index];
+    std::vector<int> worst_path = solutions[worst_index];
+
+    int best_index = std::distance(totalCosts.begin(), std::min_element(totalCosts.begin(), totalCosts.end()));
+    int best_cost = totalCosts[best_index];
+    std::vector<int> best_path = solutions[best_index];
+
+    std::cout << "Average cost: " << average << std::endl;
+    std::cout << "Worst cost: " << worst_cost << std::endl;
+    std::cout << "Best cost: " << best_cost << std::endl;
+
+    // Save average, worst, best to file
+    std::ofstream file(algorithm_type + "_" + sn_type + '_' + input_file + ".solution");
+
+    file << "Average cost: " << average << std::endl;
+
+    file << "Worst cost: " << worst_cost << " ; ";
+    for (int i = 0; i < worst_path.size(); i++)
+    {
+        file << worst_path[i] << " ";
+    }
+
+    file << "Best cost: " << best_cost << " ; ";
+    for (int i = 0; i < best_path.size(); i++)
+    {
+        file << best_path[i] << " ";
+    }
+
+    file.close();
+
+    return true;
+}
+
 // Get the (euclidean) distance matrix from the data
 std::vector<std::vector<int>> getDistanceMatrix(const std::vector<std::tuple<int, int, int>> &data)
 {
@@ -112,7 +152,7 @@ int calculateTotalCost(const std::vector<int> &path, const std::vector<std::vect
 }
 
 // Random solution
-std::vector<int> randomSolution(const std::vector<std::vector<int>> &distanceMatrix, const std::vector<int> &costLookupTable)
+std::vector<int> randomSolution(const int startNode, const std::vector<std::vector<int>> &distanceMatrix, const std::vector<int> &costLookupTable)
 {
     int n = distanceMatrix.size();
     std::vector<int> path(n);
@@ -121,13 +161,76 @@ std::vector<int> randomSolution(const std::vector<std::vector<int>> &distanceMat
 
     std::random_shuffle(path.begin(), path.end());
 
+    // Make sure the start node is at the beginning of the path
+    auto it = std::find(path.begin(), path.end(), startNode);
+    std::rotate(path.begin(), it, path.end());
+
+    // Select exactly 50% of the nodes with the same node at the beginning and end
+    int half = std::ceil(n / 2.0);
+
+    std::vector<int> selectedNodes(path.begin(), path.begin() + half - 1);
+    selectedNodes.push_back(selectedNodes[0]);
+
+    return selectedNodes;
+}
+
+// Nearest neighbor considering adding the node only at the end of the current path
+std::vector<int> nearestNeighborEnd(const int startNode, const std::vector<std::vector<int>> &distanceMatrix, const std::vector<int> &costLookupTable)
+{
+    int n = distanceMatrix.size();
+    std::vector<int> path;
+    std::vector<bool> visited(n, false);
+    int left_to_visit = std::ceil(n / 2.0) - 1;
+
+    // Start from the first node
+    int current = startNode;
+
+    while (left_to_visit > 0)
+    {
+        path.push_back(current);
+        visited[current] = true;
+
+        int next = -1;
+        int minDistance = 1e9;
+
+        for (int i = 0; i < n; i++)
+        {
+            if (!visited[i] && distanceMatrix[current][i] < minDistance)
+            {
+                next = i;
+                minDistance = distanceMatrix[current][i];
+            }
+        }
+
+        current = next;
+        left_to_visit--;
+    }
+
+    path.push_back(path[0]);
+
     return path;
 }
 
-int main()
+// Main with arguments
+int main(int argc, char *argv[])
 {
+    if (argc < 4)
+    {
+        std::cerr << "Usage: " << argv[0] << " <input_file> <algorithm_type> <sn_type>" << std::endl;
+        std::cerr << "Algorithm types: random, nn1, nn2, greedy" << std::endl;
+        std::cerr << "SN types: random, each" << std::endl;
+        std::cerr << "Example: " << argv[0] << " input.csv random" << std::endl;
+        return 1;
+    }
+
+    std::string input_file = argv[1];
+    std::string algorithm_type = argv[2];
+    std::string sn_type = argv[3];
+
     // Read data from the file
-    std::vector<std::tuple<int, int, int>> data = readCSV("../data/TSPA.csv");
+    std::vector<std::tuple<int, int, int>> data = readCSV("../data/" + input_file);
+    int elements = data.size();
+    int half = std::ceil(elements / 2.0);
 
     // Get the distance matrix
     std::vector<std::vector<int>> distanceMatrix = getDistanceMatrix(data);
@@ -140,67 +243,59 @@ int main()
     }
 
     // Print the number of nodes and average distance
-    std::cout << "Number of nodes: " << data.size() << std::endl;
-
-    int totalDistance = 0;
-    for (int i = 0; i < data.size(); i++)
-    {
-        for (int j = 0; j < data.size(); j++)
-        {
-            totalDistance += distanceMatrix[i][j];
-        }
-    }
-    std::cout << "Average distance: " << totalDistance / data.size() << std::endl;
-
+    std::cout << "Number of nodes: " << elements << std::endl;
     std::cout << std::string(80, '-') << std::endl;
 
     // Generate 200 solutions
+    int nSolutions = 200;
     std::vector<std::vector<int>> solutions;
     std::vector<int> totalCosts;
 
-    for (int i = 0; i < 200; i++)
+    for (int i = 0; i < nSolutions; i++)
     {
-        std::vector<int> path = randomSolution(distanceMatrix, costLookupTable);
+        int startNode;
+        if (sn_type == "random")
+            startNode = std::rand() % elements;
+        else if (sn_type == "each")
+            startNode = i % elements;
+        else
+        {
+            std::cerr << "Invalid SN type!" << std::endl;
+            return 1;
+        }
+
+        std::vector<int> path;
+
+        if (algorithm_type == "random")
+            path = randomSolution(startNode, distanceMatrix, costLookupTable);
+        else if (algorithm_type == "nn1")
+            path = nearestNeighborEnd(startNode, distanceMatrix, costLookupTable);
+        else if (algorithm_type == "nn2")
+            exit(1);
+        else if (algorithm_type == "greedy")
+            exit(1);
+        else
+        {
+            std::cerr << "Invalid algorithm type!" << std::endl;
+            return 1;
+        }
+
         int totalCost = calculateTotalCost(path, distanceMatrix, costLookupTable);
+
+        // ASSERT CORRECTNESS
+        // Assert that the selected nodes are exactly 50% of the total nodes
+        assert(path.size() == half);
+        // Assert cycle
+        assert(path.front() == path.back());
+        // Assert start node is at the beginning
+        assert(path.front() == startNode);
 
         // Store the solution and its total cost
         solutions.push_back(path);
         totalCosts.push_back(totalCost);
     }
 
-    // Get average, worst, best of the total costs
-    float average = std::accumulate(totalCosts.begin(), totalCosts.end(), 0) / totalCosts.size();
-
-    int worst_index = std::distance(totalCosts.begin(), std::max_element(totalCosts.begin(), totalCosts.end()));
-    int worst_cost = totalCosts[worst_index];
-    std::vector<int> worst_path = solutions[worst_index];
-
-    int best_index = std::distance(totalCosts.begin(), std::min_element(totalCosts.begin(), totalCosts.end()));
-    int best_cost = totalCosts[best_index];
-    std::vector<int> best_path = solutions[best_index];
-
-    std::cout << "Average cost: " << average << std::endl;
-    std::cout << "Worst cost: " << worst_cost << std::endl;
-    std::cout << "Best cost: " << best_cost << std::endl;
-
-    // Save average, worst, best to file
-    std::ofstream file("random_solution.solution");
-
-    file << "Average cost: " << average << std::endl;
-
-    file << "Worst cost: " << worst_cost << " ; ";
-    for (int i = 0; i < worst_path.size(); i++)
-    {
-        file << worst_path[i] << " ";
-    }
-
-    file << "Best cost: " << best_cost << " ; ";
-    for (int i = 0; i < best_path.size(); i++)
-    {
-        file << best_path[i] << " ";
-    }
-
-    file.close();
+    dumpToFile(input_file, algorithm_type, solutions, totalCosts, sn_type);
 
     return 0;
 }
