@@ -36,3 +36,8 @@
 *.exe
 *.out
 *.app
+
+plots/
+results/
+*.solution
+.DS_Store
