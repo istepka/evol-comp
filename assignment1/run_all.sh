@@ -26,4 +26,6 @@ done
 
 rm a1
 
+python generate_artifacts.py
+
 echo "All runs completed."
