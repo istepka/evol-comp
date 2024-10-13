@@ -39,5 +39,6 @@
 
 plots/
 results/
+exported_results/
 *.solution
 .DS_Store
