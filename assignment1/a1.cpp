@@ -1,4 +1,17 @@
-#include <bits/stdc++.h>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <tuple>
+#include <cmath>
+#include <cstdlib>
+#include <algorithm>
+#include <numeric>
+#include <cassert>
+#include <string>
+#include <unordered_set>
+#include <climits>
+
 /*
 ## Problem description
 We are given three columns of integers with a row for each node. The first two columns contain x
@@ -66,7 +79,7 @@ std::vector<std::tuple<int, int, int>> readCSV(const std::string &filename)
 bool dumpToFile(const std::string &input_file, const std::string &algorithm_type, const std::vector<std::vector<int>> &solutions, const std::vector<int> &totalCosts, const std::string &sn_type)
 {
     // Get average, worst, best of the total costs
-    float average = std::accumulate(totalCosts.begin(), totalCosts.end(), 0) / totalCosts.size();
+    float average = std::accumulate(totalCosts.begin(), totalCosts.end(), 0) / static_cast<float>(totalCosts.size());
 
     int worst_index = std::distance(totalCosts.begin(), std::max_element(totalCosts.begin(), totalCosts.end()));
     int worst_cost = totalCosts[worst_index];
@@ -80,8 +93,12 @@ bool dumpToFile(const std::string &input_file, const std::string &algorithm_type
     std::cout << "Worst cost: " << worst_cost << std::endl;
     std::cout << "Best cost: " << best_cost << std::endl;
 
+    // create results directory if it doesn't exist
+    std::string dir = "./results";
+    std::string command = "mkdir -p " + dir;
+    system(command.c_str());
     // Save average, worst, best to file
-    std::ofstream file(algorithm_type + "_" + sn_type + '_' + input_file + ".solution");
+    std::ofstream file("./results/" + algorithm_type + "_" + sn_type + '_' + input_file + ".solution");
 
     file << "Average cost: " << average << std::endl;
 
@@ -90,12 +107,14 @@ bool dumpToFile(const std::string &input_file, const std::string &algorithm_type
     {
         file << worst_path[i] << " ";
     }
+    file << std::endl;
 
     file << "Best cost: " << best_cost << " ; ";
     for (int i = 0; i < best_path.size(); i++)
     {
         file << best_path[i] << " ";
     }
+    file << std::endl;
 
     file.close();
 
@@ -110,21 +129,23 @@ std::vector<std::vector<int>> getDistanceMatrix(const std::vector<std::tuple<int
 
     for (int i = 0; i < n; i++)
     {
-        for (int j = 0; j < n; j++)
+        int x1 = std::get<0>(data[i]);
+        int y1 = std::get<1>(data[i]);
+        for (int j = i + 1; j < n; j++)
         {
-            int x1 = std::get<0>(data[i]);
-            int y1 = std::get<1>(data[i]);
             int x2 = std::get<0>(data[j]);
             int y2 = std::get<1>(data[j]);
 
             int dx = x2 - x1;
             int dy = y2 - y1;
 
-            // Calculate the euclidean distance
-            distanceMatrix[i][j] = std::sqrt(dx * dx + dy * dy);
+            // Calculate the Euclidean distance
+            double dist = std::sqrt(dx * dx + dy * dy);
+            // Round the distance to the nearest integer
+            int roundedDist = static_cast<int>(std::round(dist));
 
-            // Make sure to mathematically round the distance to the nearest integer
-            distanceMatrix[i][j] = std::round(distanceMatrix[i][j]);
+            distanceMatrix[i][j] = roundedDist;
+            distanceMatrix[j][i] = roundedDist;
         }
     }
 
@@ -135,77 +156,256 @@ std::vector<std::vector<int>> getDistanceMatrix(const std::vector<std::tuple<int
 int calculateTotalCost(const std::vector<int> &path, const std::vector<std::vector<int>> &distanceMatrix, const std::vector<int> &costLookupTable)
 {
     int totalCost = 0;
+    int pathSize = path.size();
 
-    for (int i = 0; i < path.size() - 1; i++)
+    // Sum distances between consecutive nodes
+    for (int i = 0; i < pathSize - 1; i++)
     {
         totalCost += distanceMatrix[path[i]][path[i + 1]];
     }
 
-    totalCost += distanceMatrix[path[path.size() - 1]][path[0]];
-
-    for (int i = 0; i < path.size(); i++)
+    // Sum node costs (excluding duplicate nodes if any)
+    std::unordered_set<int> uniqueNodes(path.begin(), path.end() - 1);
+    for (int node : uniqueNodes)
     {
-        totalCost += costLookupTable[path[i]];
+        totalCost += costLookupTable[node];
     }
 
     return totalCost;
 }
 
 // Random solution
-std::vector<int> randomSolution(const int startNode, const std::vector<std::vector<int>> &distanceMatrix, const std::vector<int> &costLookupTable)
+std::vector<int> randomSolution(const int startNode, const std::vector<std::vector<int>> &distanceMatrix, const std::vector<int> &costLookupTable, int k)
 {
     int n = distanceMatrix.size();
-    std::vector<int> path(n);
+    std::vector<int> nodes(n);
     for (int i = 0; i < n; i++)
-        path[i] = i;
+        nodes[i] = i;
 
-    std::random_shuffle(path.begin(), path.end());
+    std::random_shuffle(nodes.begin(), nodes.end());
 
-    // Make sure the start node is at the beginning of the path
-    auto it = std::find(path.begin(), path.end(), startNode);
-    std::rotate(path.begin(), it, path.end());
+    // Make sure the start node is at the beginning of the nodes list
+    auto it = std::find(nodes.begin(), nodes.end(), startNode);
+    if (it != nodes.end())
+    {
+        std::swap(nodes[0], *it);
+    }
+    else
+    {
+        nodes.insert(nodes.begin(), startNode);
+    }
 
-    // Select exactly 50% of the nodes with the same node at the beginning and end
-    int half = std::ceil(n / 2.0);
-
-    std::vector<int> selectedNodes(path.begin(), path.begin() + half - 1);
-    selectedNodes.push_back(selectedNodes[0]);
+    // Select exactly k nodes
+    std::vector<int> selectedNodes(nodes.begin(), nodes.begin() + k);
+    selectedNodes.push_back(selectedNodes[0]); // Close the cycle
 
     return selectedNodes;
 }
 
 // Nearest neighbor considering adding the node only at the end of the current path
-std::vector<int> nearestNeighborEnd(const int startNode, const std::vector<std::vector<int>> &distanceMatrix, const std::vector<int> &costLookupTable)
+std::vector<int> nearestNeighborEnd(const int startNode, const std::vector<std::vector<int>> &distanceMatrix, const std::vector<int> &costLookupTable, int k)
 {
     int n = distanceMatrix.size();
     std::vector<int> path;
     std::vector<bool> visited(n, false);
-    int left_to_visit = std::ceil(n / 2.0) - 1;
 
-    // Start from the first node
+    // Start from the startNode
+    path.push_back(startNode);
+    visited[startNode] = true;
+
     int current = startNode;
 
-    while (left_to_visit > 0)
+    while (path.size() < k)
     {
-        path.push_back(current);
-        visited[current] = true;
-
         int next = -1;
-        int minDistance = 1e9;
+        int minEffectiveDistance = INT_MAX;
 
         for (int i = 0; i < n; i++)
         {
-            if (!visited[i] && distanceMatrix[current][i] < minDistance)
+            if (!visited[i])
             {
-                next = i;
-                minDistance = distanceMatrix[current][i];
+                int dist = distanceMatrix[current][i];
+                int effectiveDistance = dist + costLookupTable[i];
+                if (effectiveDistance < minEffectiveDistance)
+                {
+                    minEffectiveDistance = effectiveDistance;
+                    next = i;
+                }
             }
         }
 
+        if (next == -1)
+        {
+            break; // No more nodes to add
+        }
+
+        path.push_back(next);
+        visited[next] = true;
         current = next;
-        left_to_visit--;
     }
 
+    // Close the cycle
+    path.push_back(startNode);
+
+    return path;
+}
+
+// Nearest neighbor considering adding the node at any position
+std::vector<int> nearestNeighborAny(const int startNode, const std::vector<std::vector<int>> &distanceMatrix, const std::vector<int> &costLookupTable, int k)
+{
+    int n = distanceMatrix.size();
+    std::vector<int> path;
+    std::vector<bool> visited(n, false);
+
+    // Start from the startNode
+    path.push_back(startNode);
+    visited[startNode] = true;
+
+    // While path.size() < k
+    while (path.size() < k)
+    {
+        int nearest = -1;
+        int minEffectiveDistance = INT_MAX;
+
+        // Find the nearest unvisited node to any node in the current path
+        for (int node = 0; node < n; node++)
+        {
+            if (!visited[node])
+            {
+                for (int p_node : path)
+                {
+                    int dist = distanceMatrix[p_node][node];
+                    int effectiveDistance = dist + costLookupTable[node];
+                    if (effectiveDistance < minEffectiveDistance)
+                    {
+                        minEffectiveDistance = effectiveDistance;
+                        nearest = node;
+                    }
+                }
+            }
+        }
+
+        if (nearest == -1)
+        {
+            break; // No more nodes to add
+        }
+
+        // Find the best position to insert the nearest node
+        int bestPos = -1;
+        int minIncrease = INT_MAX;
+        int pathSize = path.size();
+
+        for (int i = 0; i < pathSize; i++)
+        {
+            int current = path[i];
+            int next = path[(i + 1) % pathSize]; // wrap around
+            int increase = distanceMatrix[current][nearest] + distanceMatrix[nearest][next] - distanceMatrix[current][next];
+            if (increase < minIncrease)
+            {
+                minIncrease = increase;
+                bestPos = i + 1;
+            }
+        }
+
+        // Insert nearest at bestPos
+        if (bestPos != -1)
+        {
+            path.insert(path.begin() + bestPos, nearest);
+            visited[nearest] = true;
+        }
+        else
+        {
+            // Should not happen
+            break;
+        }
+    }
+
+    // Close the cycle
+    path.push_back(path[0]);
+
+    return path;
+}
+
+// Greedy cycle adapted to the problem
+std::vector<int> greedyCycle(const int startNode, const std::vector<std::vector<int>> &distanceMatrix, const std::vector<int> &costLookupTable, int k)
+{
+    int n = distanceMatrix.size();
+    std::vector<int> path;
+    std::vector<bool> visited(n, false);
+
+    // Start from the startNode
+    path.push_back(startNode);
+    visited[startNode] = true;
+
+    while (path.size() < k)
+    {
+        int bestNode = -1;
+        int bestScore = INT_MAX;
+
+        // For each unselected node
+        for (int node = 0; node < n; node++)
+        {
+            if (!visited[node])
+            {
+                // Find the minimum increase in distance for insertion
+                int minIncrease = INT_MAX;
+
+                for (size_t i = 0; i < path.size(); i++)
+                {
+                    int current = path[i];
+                    int next = path[(i + 1) % path.size()];
+                    int increase = distanceMatrix[current][node] + distanceMatrix[node][next] - distanceMatrix[current][next];
+                    if (increase < minIncrease)
+                    {
+                        minIncrease = increase;
+                    }
+                }
+
+                // Define score as minIncrease + cost of the node
+                int score = minIncrease + costLookupTable[node];
+                if (score < bestScore)
+                {
+                    bestScore = score;
+                    bestNode = node;
+                }
+            }
+        }
+
+        if (bestNode == -1)
+        {
+            break; // No more nodes to add
+        }
+
+        // Insert the bestNode at the position that minimizes the increase
+        int bestIncrease = INT_MAX;
+        int bestPos = -1;
+
+        for (size_t i = 0; i < path.size(); i++)
+        {
+            int current = path[i];
+            int next = path[(i + 1) % path.size()];
+            int increase = distanceMatrix[current][bestNode] + distanceMatrix[bestNode][next] - distanceMatrix[current][next];
+            if (increase < bestIncrease)
+            {
+                bestIncrease = increase;
+                bestPos = i + 1;
+            }
+        }
+
+        if (bestPos != -1)
+        {
+            path.insert(path.begin() + bestPos, bestNode);
+            visited[bestNode] = true;
+        }
+        else
+        {
+            // Append at the end if no better position found
+            path.push_back(bestNode);
+            visited[bestNode] = true;
+        }
+    }
+
+    // Close the cycle
     path.push_back(path[0]);
 
     return path;
@@ -218,8 +418,8 @@ int main(int argc, char *argv[])
     {
         std::cerr << "Usage: " << argv[0] << " <input_file> <algorithm_type> <sn_type>" << std::endl;
         std::cerr << "Algorithm types: random, nn1, nn2, greedy" << std::endl;
-        std::cerr << "SN types: random, each" << std::endl;
-        std::cerr << "Example: " << argv[0] << " input.csv random" << std::endl;
+        std::cerr << "Starting node types: random, each" << std::endl;
+        std::cerr << "Example: " << argv[0] << " input.csv random random" << std::endl;
         return 1;
     }
 
@@ -230,7 +430,7 @@ int main(int argc, char *argv[])
     // Read data from the file
     std::vector<std::tuple<int, int, int>> data = readCSV("../data/" + input_file);
     int elements = data.size();
-    int half = std::ceil(elements / 2.0);
+    int k = std::ceil(elements / 2.0);
 
     // Get the distance matrix
     std::vector<std::vector<int>> distanceMatrix = getDistanceMatrix(data);
@@ -242,7 +442,7 @@ int main(int argc, char *argv[])
         costLookupTable.push_back(std::get<2>(tuple));
     }
 
-    // Print the number of nodes and average distance
+    // Print the number of nodes
     std::cout << "Number of nodes: " << elements << std::endl;
     std::cout << std::string(80, '-') << std::endl;
 
@@ -260,20 +460,20 @@ int main(int argc, char *argv[])
             startNode = i % elements;
         else
         {
-            std::cerr << "Invalid SN type!" << std::endl;
+            std::cerr << "Invalid Starting node type!" << std::endl;
             return 1;
         }
 
         std::vector<int> path;
 
         if (algorithm_type == "random")
-            path = randomSolution(startNode, distanceMatrix, costLookupTable);
+            path = randomSolution(startNode, distanceMatrix, costLookupTable, k);
         else if (algorithm_type == "nn1")
-            path = nearestNeighborEnd(startNode, distanceMatrix, costLookupTable);
+            path = nearestNeighborEnd(startNode, distanceMatrix, costLookupTable, k);
         else if (algorithm_type == "nn2")
-            exit(1);
+            path = nearestNeighborAny(startNode, distanceMatrix, costLookupTable, k);
         else if (algorithm_type == "greedy")
-            exit(1);
+            path = greedyCycle(startNode, distanceMatrix, costLookupTable, k);
         else
         {
             std::cerr << "Invalid algorithm type!" << std::endl;
@@ -283,12 +483,12 @@ int main(int argc, char *argv[])
         int totalCost = calculateTotalCost(path, distanceMatrix, costLookupTable);
 
         // ASSERT CORRECTNESS
-        // Assert that the selected nodes are exactly 50% of the total nodes
-        assert(path.size() == half);
+        // Assert that the selected nodes are exactly k
+        assert(path.size() == (k + 1));
         // Assert cycle
         assert(path.front() == path.back());
-        // Assert start node is at the beginning
-        assert(path.front() == startNode);
+        // Assert start node is at the beginning if not greedy
+        assert(path.front() == startNode || (algorithm_type == "greedy"));
 
         // Store the solution and its total cost
         solutions.push_back(path);
