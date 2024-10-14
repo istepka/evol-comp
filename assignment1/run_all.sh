@@ -1,7 +1,6 @@
 #!/bin/bash
 
 g++ -std=c++11 a1.cpp -o a1
-# Script to run ./a1 with different CSV files and algorithms
 
 # Define the CSV files and algorithms
 CSV_FILES=("TSPA.csv" "TSPB.csv")
