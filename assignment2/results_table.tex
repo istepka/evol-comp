@@ -1,0 +1,24 @@
+% LaTeX Table of Results
+\begin{table}[ht]
+\centering
+\caption{Computational Experiment Results}
+\label{tab:results}
+\begin{tabular}{lcccc}
+\hline
+Instance & Method & Best Cost & Worst Cost & Average Cost \\
+\hline
+TSPA & greedy & 71488.00 & 74410.00 & 72636.00 \\
+TSPA & nn1 & 83182.00 & 89433.00 & 85108.50 \\
+TSPA & nn2 & 71515.00 & 73823.00 & 72343.60 \\
+TSPA & random & 231179.00 & 299062.00 & 263419.00 \\
+TSPA & kregret & 72527.00 & 76877.00 & 74243.70 \\
+TSPA & kregret2 & 71949.00 & 74715.00 & 73017.10 \\
+TSPB & greedy & 49001.00 & 57324.00 & 51400.60 \\
+TSPB & nn1 & 52319.00 & 59030.00 & 54390.40 \\
+TSPB & nn2 & 47295.00 & 51030.00 & 48989.30 \\
+TSPB & random & 180082.00 & 237105.00 & 214014.00 \\
+TSPB & kregret & 47346.00 & 51023.00 & 48865.40 \\
+TSPB & kregret2 & 50081.00 & 58490.00 & 52762.60 \\
+\hline
+\end{tabular}
+\end{table}
