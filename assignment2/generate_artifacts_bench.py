@@ -1,3 +1,4 @@
+from collections import defaultdict
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -6,20 +7,22 @@ import math
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 import logging
+import numpy as np
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
 # Constants
 DATA_DIR = Path('../data')
-RESULTS_DIR = Path('results')
+RESULTS_DIR = Path('results_bench')
 # New directory for exported CSVs
-RESULTS_EXPORT_DIR = Path('exported_results')
-PLOTS_DIR = Path('plots')
-LATEX_TABLE_FILE = 'results_table.tex'
+RESULTS_EXPORT_DIR = Path('bench_exported_results')
+PLOTS_DIR = Path('bench_plots')
+LATEX_TABLE_FILE = 'bench_results_table.tex'
 
 # Define Instances and Methods
-INSTANCES = ['TSPA', 'TSPB']
+INSTANCES = ['TSPB']
 METHODS = ['greedy', 'nn1', 'nn2', 'random', 'kregret', 'kregret2']
 
 # Configure Matplotlib for serif fonts and even larger font sizes
@@ -121,20 +124,22 @@ def parse_solution_file(file_path: Path) -> Dict[str, Any]:
 
 
 def collect_results(instances: List[str], methods: List[str]) -> Dict[str, Dict[str, Dict[str, Any]]]:
-    all_results = {instance: {method: {} for method in methods}
-                   for instance in instances}
+    all_results = defaultdict(lambda: defaultdict(dict))
 
-    for method in methods:
+    for method in ['kregret2']:
         for instance in instances:
-            file_name = f'{method}_each_{instance}.csv.solution'
-            file_path = RESULTS_DIR / file_name
-            if file_path.exists():
-                parsed = parse_solution_file(file_path)
-                all_results[instance][method] = parsed
-                logging.info(
-                    f"Parsed results for method '{method}' on instance '{instance}'.")
-            else:
-                logging.warning(f"Solution file {file_path} does not exist.")
+            for l1 in ["0.000000", "0.200000", "0.400000", "0.600000", "0.800000", "1.000000"]:
+                for l2 in ["0.000000", "0.200000", "0.400000", "0.600000", "0.800000", "1.000000"]:
+                    file_name = f'{method}_each_{instance}.csv_{l1}_{l2}.solution'
+                    file_path = RESULTS_DIR / file_name
+                    if file_path.exists():
+                        parsed = parse_solution_file(file_path)
+                        all_results[float(l1)][float(l2)] = parsed
+                        logging.info(
+                            f"Parsed results for method '{method}' on instance '{l1}_{l2}'.")
+                    else:
+                        logging.warning(
+                            f"Solution file {file_path} does not exist.")
     return all_results
 
 # Generate LaTeX tables
@@ -356,6 +361,59 @@ def export_best_solution_to_csv(instance: str, method: str, solution: List[int],
         return None
 
 
+def do_visual_heatmap(all_results: Dict[str, Dict[str, Dict[str, Any]]], instances: List[str], methods: List[str], output_dir: Path):
+
+    # Build pandas frame with flattened results
+    results = []
+    for k, v in all_results.items():
+        for k2, v2 in v.items():
+            results.append({'l1': k, 'l2': k2, 'best_cost': v2.get(
+                'best_cost', None), 'worst_cost': v2.get('worst_cost', None), 'average_cost': v2.get('average_cost', None)})
+    df = pd.DataFrame(results)
+
+    #  Reshape the data into a pivot table for the heatmap
+    heatmap_data = df.pivot(index='l1', columns='l2', values='best_cost')
+
+    # Create figure with larger size
+    plt.figure(figsize=(12, 8))
+
+    # Create heatmap with customized appearance and smaller fonts
+    sns.heatmap(heatmap_data,
+                annot=True,  # Show values in cells
+                fmt='.0f',   # Format numbers with no decimal places
+                cmap='viridis',
+                # Smaller colorbar label
+                cbar_kws={'label': 'Best Cost'},
+                square=True,
+                annot_kws={'size': 12})  # Smaller font size for cell values
+
+    # Customize the plot with smaller fonts
+    plt.title('Impact of λ1 and λ2 Parameters on Best Cost',
+              pad=20, fontsize=12)
+    plt.xlabel('λ2 (Option Weight)', fontsize=12)
+    plt.ylabel('λ1 (Objective Weight)', fontsize=12)
+
+    # Adjust tick label sizes
+    plt.xticks(rotation=0, fontsize=12)
+    plt.yticks(rotation=0, fontsize=12)
+
+    # Adjust colorbar label font size separately
+    cbar = plt.gcf().axes[-1]  # Get the colorbar axes
+    cbar.set_ylabel('Best Cost', fontsize=10)
+    cbar.tick_params(labelsize=10)
+
+    # Adjust layout to prevent label cutoff
+    plt.tight_layout()
+
+    # Save the plot as PDF
+    plot_filename = 'heatmap_best_costB.pdf'
+    plot_path = output_dir / plot_filename
+    plt.savefig(plot_path, format='pdf')
+
+    # Show the plot
+    plt.show()
+
+
 def main():
     # Step 1: Read node data
     node_data_dict = {}
@@ -369,6 +427,10 @@ def main():
 
     # Step 2: Collect all results
     all_results = collect_results(INSTANCES, METHODS)
+
+    print(all_results)
+
+    do_visual_heatmap(all_results, INSTANCES, METHODS, PLOTS_DIR)
 
     # Step 3: Generate LaTeX tables
     generate_latex_tables(all_results.copy(), INSTANCES,

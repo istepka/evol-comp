@@ -93,12 +93,12 @@ bool dumpToFile(const std::string &input_file,
     std::cout << "Best cost: " << best_cost << std::endl;
 
     // create results directory if it doesn't exist
-    std::string dir = "./results";
+    std::string dir = "./results_bench";
     std::string command = "mkdir -p " + dir;
     system(command.c_str());
     // Save average, worst, best to file
     additionalString = "_" + additionalString;
-    std::string filename = "./results/" + algorithm_type + "_" + sn_type + '_' + input_file + additionalString + ".solution";
+    std::string filename = "./results_bench/" + algorithm_type + "_" + sn_type + '_' + input_file + additionalString + ".solution";
     std::ofstream file(filename.c_str());
 
     file << "Average cost: " << average << std::endl;
@@ -561,55 +561,67 @@ int main(int argc, char *argv[])
     std::vector<std::vector<int>> solutions;
     std::vector<int> totalCosts;
 
-    for (int i = 0; i < nSolutions; i++)
+    std::vector<float> lambdasObjective = {0, 0.2, 0.4, 0.6, 0.8, 1};
+    std::vector<float> lambdasOption1 = {0, 0.2, 0.4, 0.6, 0.8, 1};
+    int totalIterations = lambdasObjective.size() * lambdasOption1.size();
+    for (float lobj : lambdasObjective)
     {
-        int startNode;
-        if (sn_type == "random")
-            startNode = std::rand() % elements;
-        else if (sn_type == "each")
-            startNode = i % elements;
-        else
+        for (float lop1 : lambdasOption1)
         {
-            std::cerr << "Invalid Starting node type!" << std::endl;
-            return 1;
+            std::cout << "----------------------" << std::endl;
+            std::cout << "Iteration: " << lobj << " " << lop1 << std::endl;
+            std::cout << "Lambda Objective: " << lobj << " Lambda Option 1: " << lop1 << std::endl;
+            for (int i = 0; i < nSolutions; i++)
+            {
+                int startNode;
+                if (sn_type == "random")
+                    startNode = std::rand() % elements;
+                else if (sn_type == "each")
+                    startNode = i % elements;
+                else
+                {
+                    std::cerr << "Invalid Starting node type!" << std::endl;
+                    return 1;
+                }
+
+                std::vector<int> path;
+
+                if (algorithm_type == "random")
+                    path = randomSolution(startNode, distanceMatrix, costLookupTable, k);
+                else if (algorithm_type == "nn1")
+                    path = nearestNeighborEnd(startNode, distanceMatrix, costLookupTable, k);
+                else if (algorithm_type == "nn2")
+                    path = nearestNeighborAny(startNode, distanceMatrix, costLookupTable, k);
+                else if (algorithm_type == "greedy")
+                    path = greedyCycle(startNode, distanceMatrix, costLookupTable, k);
+                else if (algorithm_type == "kregret")
+                    path = kRegretGreedyCycle(startNode, distanceMatrix, costLookupTable, k);
+                else if (algorithm_type == "kregret2")
+                    path = kRegretGreedyCycleWeighted(startNode, distanceMatrix, costLookupTable, k, lobj, lop1);
+                else
+                {
+                    std::cerr << "Invalid algorithm type!" << std::endl;
+                    return 1;
+                }
+
+                int totalCost = calculateTotalCost(path, distanceMatrix, costLookupTable);
+
+                // ASSERT CORRECTNESS
+                // Assert that the selected nodes are exactly k
+                assert(path.size() == (k + 1));
+                // Assert cycle
+                assert(path.front() == path.back());
+                // Assert start node is at the beginning if not greedy
+                assert(path.front() == startNode || (algorithm_type == "greedy"));
+
+                // Store the solution and its total cost
+                solutions.push_back(path);
+                totalCosts.push_back(totalCost);
+            }
+
+            dumpToFile(input_file, algorithm_type, solutions, totalCosts, sn_type, std::to_string(lobj) + "_" + std::to_string(lop1));
         }
-
-        std::vector<int> path;
-
-        if (algorithm_type == "random")
-            path = randomSolution(startNode, distanceMatrix, costLookupTable, k);
-        else if (algorithm_type == "nn1")
-            path = nearestNeighborEnd(startNode, distanceMatrix, costLookupTable, k);
-        else if (algorithm_type == "nn2")
-            path = nearestNeighborAny(startNode, distanceMatrix, costLookupTable, k);
-        else if (algorithm_type == "greedy")
-            path = greedyCycle(startNode, distanceMatrix, costLookupTable, k);
-        else if (algorithm_type == "kregret")
-            path = kRegretGreedyCycle(startNode, distanceMatrix, costLookupTable, k);
-        else if (algorithm_type == "kregret2")
-            path = kRegretGreedyCycleWeighted(startNode, distanceMatrix, costLookupTable, k);
-        else
-        {
-            std::cerr << "Invalid algorithm type!" << std::endl;
-            return 1;
-        }
-
-        int totalCost = calculateTotalCost(path, distanceMatrix, costLookupTable);
-
-        // ASSERT CORRECTNESS
-        // Assert that the selected nodes are exactly k
-        assert(path.size() == (k + 1));
-        // Assert cycle
-        assert(path.front() == path.back());
-        // Assert start node is at the beginning if not greedy
-        assert(path.front() == startNode || (algorithm_type == "greedy"));
-
-        // Store the solution and its total cost
-        solutions.push_back(path);
-        totalCosts.push_back(totalCost);
     }
-
-    dumpToFile(input_file, algorithm_type, solutions, totalCosts, sn_type);
 
     return 0;
 }
