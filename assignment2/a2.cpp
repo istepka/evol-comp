@@ -92,10 +92,8 @@ bool dumpToFile(const std::string &input_file, const std::string &algorithm_type
     std::string command = "mkdir -p " + dir;
     system(command.c_str());
     // Save average, worst, best to file
-    std::cout << "Saving results to file..." << std::endl;
     std::string filename = "./results/" + algorithm_type + "_" + sn_type + '_' + input_file + ".solution";
     std::ofstream file(filename.c_str());
-    std::cout << "Results file: " << filename << std::endl;
 
     file << "Average cost: " << average << std::endl;
 
@@ -115,8 +113,6 @@ bool dumpToFile(const std::string &input_file, const std::string &algorithm_type
 
     file.flush();
     file.close();
-
-    std::cout << "Results saved to file!" << std::endl;
 
     return true;
 }
@@ -404,8 +400,6 @@ std::vector<int> kRegretGreedyCycle(const int startNode, const std::vector<std::
         int bestNode = -1;
         int bestPosition = -1;
 
-        // std::vector<std::vector<int>> insertCosts(n, std::vector<int>(path.size(), -1));
-
         for (int i = 0; i < n; i++)
         {
 
@@ -454,8 +448,8 @@ std::vector<int> kRegretGreedyCycleWeighted(const int startNode,
                                             const std::vector<std::vector<int>> &distanceMatrix,
                                             const std::vector<int> &costLookupTable,
                                             int k,
-                                            int lambdaObjective = 0.001,
-                                            int lambdaOption1 = 1)
+                                            float lambdaObjective = 0.5,
+                                            float lambdaOption1 = 0.5)
 {
     int n = distanceMatrix.size();
     std::vector<int> path;
@@ -500,7 +494,7 @@ std::vector<int> kRegretGreedyCycleWeighted(const int startNode,
             // Sort a vector
             sort(costs.begin(), costs.end(), sortbyCond);
 
-            int regret = costs[1].first - costs[0].first * lambdaOption1;
+            int regret = costs[1].first * (1 - lambdaOption1) - costs[0].first * lambdaOption1;
 
             int score = -costs[0].first * lambdaObjective + regret * (1 - lambdaObjective);
 

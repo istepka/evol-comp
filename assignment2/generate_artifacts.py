@@ -24,7 +24,7 @@ METHODS = ['greedy', 'nn1', 'nn2', 'random', 'kregret', 'kregret2']
 
 # Configure Matplotlib for serif fonts and even larger font sizes
 plt.rcParams.update({
-    'text.usetex': True,
+    # 'text.usetex': True,
     'font.family': 'serif',
     'font.size': 24,
     'axes.titlesize': 28,
@@ -206,8 +206,9 @@ def visualize_solution(instance: str, method: str, solution: List[int], node_dat
 
     try:
         # Proceed with plotting
-        plt.figure(figsize=(10, 8))
+        plt.figure(figsize=(12, 8))
         selected_nodes = node_data.iloc[solution].reset_index(drop=True)
+        all_nodes = node_data.reset_index(drop=True)
 
         # Check for NaN or invalid data
         if selected_nodes[['x', 'y', 'cost']].isnull().any().any():
@@ -218,10 +219,6 @@ def visualize_solution(instance: str, method: str, solution: List[int], node_dat
         logging.debug(
             f"Selected nodes for {method} on {instance}:\n{selected_nodes.head()}")
 
-        # Plot all nodes
-        plt.scatter(node_data['x'], node_data['y'],
-                    color='lightgrey', label='Unselected Nodes', alpha=0.6)
-
         # Plot selected nodes with color representing cost
         try:
             scatter = plt.scatter(
@@ -230,8 +227,19 @@ def visualize_solution(instance: str, method: str, solution: List[int], node_dat
                 c=selected_nodes['cost'],
                 cmap='viridis',
                 label='Selected Nodes',
-                edgecolors='k',  # Use 'edgecolors' instead of 'edgecolor'
-                linewidths=0.5
+                edgecolors='red',  # Use 'edgecolors' instead of 'edgecolor'
+                linewidths=2.5,
+                s=120
+            )
+            plt.scatter(
+                all_nodes['x'],
+                all_nodes['y'],
+                c=all_nodes['cost'],
+                cmap='viridis',
+                label='Unselected Nodes',
+                # edgecolors='k',  # Use 'edgecolors' instead of 'edgecolor'
+                # linewidths=0.5,
+                s=120
             )
         except Exception as e:
             logging.error(
@@ -247,12 +255,13 @@ def visualize_solution(instance: str, method: str, solution: List[int], node_dat
 
         # Draw the Hamiltonian cycle
         plt.plot(selected_nodes['x'], selected_nodes['y'],
-                 'r-', linewidth=1, label='Hamiltonian Cycle')
+                 'r-', linewidth=1.5, label='Hamiltonian Cycle')
 
         plt.title(f'Best Solution for {method.capitalize()} on {instance}')
         plt.xlabel('X Coordinate')
         plt.ylabel('Y Coordinate')
-        plt.legend()
+        plt.xticks([0, 1000, 2000, 3000, 4000])
+        plt.legend(ncol=3, bbox_to_anchor=(0.5, -0.15), loc='upper center')
 
         # Adjust layout
         try:
@@ -264,8 +273,9 @@ def visualize_solution(instance: str, method: str, solution: List[int], node_dat
         # Save the plot as PDF
         plot_filename = f'Best_{method}_{instance}.pdf'
         plot_path = output_dir / plot_filename
+        logging.warning(plot_path)
         try:
-            plt.savefig(plot_path)
+            plt.savefig(plot_path, format='pdf')
             logging.info(f"Plot saved at {plot_path}")
         except Exception as e:
             logging.error(f"Error saving plot for {method} on {instance}: {e}")
@@ -361,7 +371,7 @@ def main():
     all_results = collect_results(INSTANCES, METHODS)
 
     # Step 3: Generate LaTeX tables
-    generate_latex_tables(all_results, INSTANCES,
+    generate_latex_tables(all_results.copy(), INSTANCES,
                           METHODS, Path(LATEX_TABLE_FILE))
 
     # Step 4: Generate plots and export best solutions to CSV

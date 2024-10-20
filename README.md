@@ -14,5 +14,10 @@ instances defined only by distance matrices.
 
 ## Compile
 ```
-g++ assignment2/a2.cpp -o assignment2/a2.out
+g++ -std=c++11 assignment2/a2.cpp -o assignment2/a2.out
+```
+
+## Use
+```
+./a2.out TSPB.csv kregret2 each
 ```
