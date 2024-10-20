@@ -377,6 +377,15 @@ std::vector<int> greedyCycle(int startNode, const std::vector<std::vector<int>> 
     return path;
 }
 
+bool sortbyCond(const std::pair<int, int> &a,
+                const std::pair<int, int> &b)
+{
+    if (a.first != b.first)
+        return (a.first < b.first);
+    else
+        return (a.second > b.second);
+}
+
 std::vector<int> kRegretGreedyCycle(const int startNode, const std::vector<std::vector<int>> &distanceMatrix, const std::vector<int> &costLookupTable, int k)
 {
     int n = distanceMatrix.size();
@@ -391,9 +400,11 @@ std::vector<int> kRegretGreedyCycle(const int startNode, const std::vector<std::
     {
         // Go over all unvisited nodes and find the one that minimizes the increase in the objective function
         // While inserted at any position in the path
-        int highestRegret = INT_MAX;
+        int bestRegret = INT_MIN;
         int bestNode = -1;
         int bestPosition = -1;
+
+        // std::vector<std::vector<int>> insertCosts(n, std::vector<int>(path.size(), -1));
 
         for (int i = 0; i < n; i++)
         {
@@ -401,6 +412,8 @@ std::vector<int> kRegretGreedyCycle(const int startNode, const std::vector<std::
             // If node i is in the path then skip
             if (visited[i] == true)
                 continue;
+
+            std::vector<std::pair<int, int>> costs;
 
             for (int j = 0; j < path.size(); j++)
             {
@@ -412,25 +425,19 @@ std::vector<int> kRegretGreedyCycle(const int startNode, const std::vector<std::
                 int increase_A_at_j = distanceMatrix[left][i] + distanceMatrix[i][right] - distanceMatrix[left][right];
                 increase_A_at_j += costLookupTable[i];
 
-                for (int bi = i + 1; bi < n; bi++)
-                {
+                costs.push_back(std::make_pair(increase_A_at_j, j));
+            }
 
-                    if (bi == i || visited[bi])
-                        continue;
+            // Sort a vector
+            sort(costs.begin(), costs.end(), sortbyCond);
 
-                    int increase_B_at_j = distanceMatrix[left][bi] + distanceMatrix[bi][right] - distanceMatrix[left][right];
-                    increase_B_at_j += costLookupTable[bi];
+            int regret = costs[1].first - costs[0].first;
 
-                    // Calculate 2-regret
-                    int regret = increase_A_at_j - increase_B_at_j;
-
-                    if (regret < highestRegret)
-                    {
-                        highestRegret = regret;
-                        bestNode = i;
-                        bestPosition = j + 1;
-                    }
-                }
+            if (regret > bestRegret)
+            {
+                bestRegret = regret;
+                bestNode = i;
+                bestPosition = costs[0].second + 1;
             }
         }
 
@@ -447,7 +454,8 @@ std::vector<int> kRegretGreedyCycleWeighted(const int startNode,
                                             const std::vector<std::vector<int>> &distanceMatrix,
                                             const std::vector<int> &costLookupTable,
                                             int k,
-                                            int lambda = 0.5)
+                                            int lambdaObjective = 0.001,
+                                            int lambdaOption1 = 1)
 {
     int n = distanceMatrix.size();
     std::vector<int> path;
@@ -455,16 +463,17 @@ std::vector<int> kRegretGreedyCycleWeighted(const int startNode,
 
     // Start from the startNode
     path.push_back(startNode);
-    path.push_back(startNode);
     visited[startNode] = true;
 
-    while (path.size() < k + 1)
+    while (path.size() < k)
     {
         // Go over all unvisited nodes and find the one that minimizes the increase in the objective function
         // While inserted at any position in the path
-        int bestScore = INT_MAX;
+        int bestScore = INT_MIN;
         int bestNode = -1;
         int bestPosition = -1;
+
+        // std::vector<std::vector<int>> insertCosts(n, std::vector<int>(path.size(), -1));
 
         for (int i = 0; i < n; i++)
         {
@@ -473,33 +482,33 @@ std::vector<int> kRegretGreedyCycleWeighted(const int startNode,
             if (visited[i] == true)
                 continue;
 
-            for (int j = 0; j < path.size() - 1; j++)
+            std::vector<std::pair<int, int>> costs;
+
+            for (int j = 0; j < path.size(); j++)
             {
 
                 int left = path[j];
-                int right = path[j + 1];
+                int right = path[(j + 1) % path.size()]; // make sure we calculate it as a cycle
 
                 // check what happens if we insert here
                 int increase_A_at_j = distanceMatrix[left][i] + distanceMatrix[i][right] - distanceMatrix[left][right];
                 increase_A_at_j += costLookupTable[i];
 
-                for (int bi = i + 1; bi < n; bi++)
-                {
-                    int increase_B_at_j = distanceMatrix[left][bi] + distanceMatrix[bi][right] - distanceMatrix[left][right];
-                    increase_B_at_j += costLookupTable[bi];
+                costs.push_back(std::make_pair(increase_A_at_j, j));
+            }
 
-                    // Calculate 2-regret
-                    int regret = abs(increase_A_at_j - increase_B_at_j);
+            // Sort a vector
+            sort(costs.begin(), costs.end(), sortbyCond);
 
-                    int score = lambda * increase_A_at_j + (1 - lambda) * (-regret);
+            int regret = costs[1].first - costs[0].first * lambdaOption1;
 
-                    if (score < bestScore)
-                    {
-                        bestScore = score;
-                        bestNode = i;
-                        bestPosition = j + 1;
-                    }
-                }
+            int score = -costs[0].first * lambdaObjective + regret * (1 - lambdaObjective);
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestNode = i;
+                bestPosition = costs[0].second + 1;
             }
         }
 
@@ -508,6 +517,7 @@ std::vector<int> kRegretGreedyCycleWeighted(const int startNode,
         visited[bestNode] = true;
     }
 
+    path.push_back(startNode);
     return path;
 }
 
