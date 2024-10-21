@@ -20,7 +20,9 @@ LATEX_TABLE_FILE = 'results_table.tex'
 
 # Define Instances and Methods
 INSTANCES = ['TSPA', 'TSPB']
-METHODS = ['greedy', 'nn1', 'nn2', 'random', 'kregret', 'kregret2']
+METHODS = [
+    "greedy",
+    "random", "nn1", "nn2",  "kregret", "w_kregret", "kregret_mod", "w_kregret_mod"]
 
 # Configure Matplotlib for serif fonts and even larger font sizes
 plt.rcParams.update({
@@ -126,7 +128,7 @@ def collect_results(instances: List[str], methods: List[str]) -> Dict[str, Dict[
 
     for method in methods:
         for instance in instances:
-            file_name = f'{method}_each_{instance}.csv.solution'
+            file_name = f'{method}_each_{instance}.csv_.solution'
             file_path = RESULTS_DIR / file_name
             if file_path.exists():
                 parsed = parse_solution_file(file_path)

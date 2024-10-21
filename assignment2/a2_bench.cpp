@@ -388,10 +388,9 @@ bool sortbyCond(const std::pair<double, int> &a,
         return (a.second > b.second);
 }
 
-std::vector<int> kRegretGreedyCycle(const int startNode, const std::vector<std::vector<int>> &distanceMatrix, const std::vector<int> &costLookupTable, int k)
+std::vector<int> kRegretGreedyCycle_mod(const int startNode, std::vector<int> &path, const std::vector<std::vector<int>> &distanceMatrix, const std::vector<int> &costLookupTable, int k)
 {
     int n = distanceMatrix.size();
-    std::vector<int> path;
     std::vector<bool> visited(n, false);
 
     // Start from the startNode
@@ -478,13 +477,13 @@ std::vector<int> kRegretGreedyCycle(const int startNode, const std::vector<std::
     return path;
 }
 
-void kRegretGreedyCycleWeighted(const int startNode,
-                                std::vector<int> &path,
-                                const std::vector<std::vector<int>> &distanceMatrix,
-                                const std::vector<int> &costLookupTable,
-                                int howMany,
-                                float lambdaObjective = 0.5,
-                                float lambdaOption1 = 0.5)
+void kRegretGreedyCycleWeighted_mod(const int startNode,
+                                    std::vector<int> &path,
+                                    const std::vector<std::vector<int>> &distanceMatrix,
+                                    const std::vector<int> &costLookupTable,
+                                    int howMany,
+                                    float lambdaObjective = 0.5,
+                                    float lambdaOption1 = 0.5)
 {
     int n = distanceMatrix.size();
     std::vector<bool> visited(n, false);
@@ -575,13 +574,143 @@ void kRegretGreedyCycleWeighted(const int startNode,
     path.push_back(startNode);
 }
 
+void kRegretGreedyCycle(const int startNode, std::vector<int> &path, const std::vector<std::vector<int>> &distanceMatrix, const std::vector<int> &costLookupTable, int k)
+{
+    int n = distanceMatrix.size();
+    std::vector<bool> visited(n, false);
+
+    // Start from the startNode
+    path.push_back(startNode);
+    visited[startNode] = true;
+
+    while (path.size() < k)
+    {
+        // Go over all unvisited nodes and find the one that minimizes the increase in the objective function
+        // While inserted at any position in the path
+        int bestRegret = INT_MIN;
+        int bestNode = -1;
+        int bestPosition = -1;
+
+        for (int i = 0; i < n; i++)
+        {
+
+            // If node i is in the path then skip
+            if (visited[i] == true)
+                continue;
+
+            std::vector<std::pair<int, int>> costs;
+
+            for (int j = 0; j < path.size(); j++)
+            {
+
+                int left = path[j];
+                int right = path[(j + 1) % path.size()]; // make sure we calculate it as a cycle
+
+                // check what happens if we insert here
+                int increase_A_at_j = distanceMatrix[left][i] + distanceMatrix[i][right] - distanceMatrix[left][right];
+                increase_A_at_j += costLookupTable[i];
+
+                costs.push_back(std::make_pair(increase_A_at_j, j));
+            }
+
+            // Sort a vector
+            sort(costs.begin(), costs.end(), sortbyCond);
+
+            int regret = costs[1].first - costs[0].first;
+
+            if (regret > bestRegret)
+            {
+                bestRegret = regret;
+                bestNode = i;
+                bestPosition = costs[0].second + 1;
+            }
+        }
+
+        // Insert it into the path
+        path.insert(path.begin() + bestPosition, bestNode);
+        visited[bestNode] = true;
+    }
+
+    path.push_back(startNode);
+}
+
+void kRegretGreedyCycleWeighted(const int startNode,
+                                std::vector<int> &path,
+                                const std::vector<std::vector<int>> &distanceMatrix,
+                                const std::vector<int> &costLookupTable,
+                                int k,
+                                float lambdaObjective = 0.5,
+                                float lambdaOption1 = 0.5)
+{
+    int n = distanceMatrix.size();
+    std::vector<bool> visited(n, false);
+
+    // Start from the startNode
+    path.push_back(startNode);
+    visited[startNode] = true;
+
+    while (path.size() < k)
+    {
+        // Go over all unvisited nodes and find the one that minimizes the increase in the objective function
+        // While inserted at any position in the path
+        int bestScore = INT_MIN;
+        int bestNode = -1;
+        int bestPosition = -1;
+
+        // std::vector<std::vector<int>> insertCosts(n, std::vector<int>(path.size(), -1));
+
+        for (int i = 0; i < n; i++)
+        {
+
+            // If node i is in the path then skip
+            if (visited[i] == true)
+                continue;
+
+            std::vector<std::pair<int, int>> costs;
+
+            for (int j = 0; j < path.size(); j++)
+            {
+
+                int left = path[j];
+                int right = path[(j + 1) % path.size()]; // make sure we calculate it as a cycle
+
+                // check what happens if we insert here
+                int increase_A_at_j = distanceMatrix[left][i] + distanceMatrix[i][right] - distanceMatrix[left][right];
+                increase_A_at_j += costLookupTable[i];
+
+                costs.push_back(std::make_pair(increase_A_at_j, j));
+            }
+
+            // Sort a vector
+            sort(costs.begin(), costs.end(), sortbyCond);
+
+            int regret = costs[1].first * (1 - lambdaOption1) - costs[0].first * lambdaOption1;
+
+            int score = -costs[0].first * lambdaObjective + regret * (1 - lambdaObjective);
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestNode = i;
+                bestPosition = costs[0].second + 1;
+            }
+        }
+
+        // Insert it into the path
+        path.insert(path.begin() + bestPosition, bestNode);
+        visited[bestNode] = true;
+    }
+
+    path.push_back(startNode);
+}
+
 // Main with arguments
 int main(int argc, char *argv[])
 {
     if (argc < 4)
     {
         std::cerr << "Usage: " << argv[0] << " <input_file> <algorithm_type> <sn_type>" << std::endl;
-        std::cerr << "Algorithm types: random, nn1, nn2, greedy, kregret, kregret2" << std::endl;
+        std::cerr << "Algorithm types: random, nn1, nn2, greedy, kregret, w_kregret, kregret_mod, w_kregret_mod" << std::endl;
         std::cerr << "Starting node types: random, each" << std::endl;
         std::cerr << "Example: " << argv[0] << " input.csv random random" << std::endl;
         return 1;
@@ -649,9 +778,21 @@ int main(int argc, char *argv[])
                 else if (algorithm_type == "greedy")
                     path = greedyCycle(startNode, distanceMatrix, costLookupTable, k);
                 else if (algorithm_type == "kregret")
-                    path = kRegretGreedyCycle(startNode, distanceMatrix, costLookupTable, k);
-                else if (algorithm_type == "kregret2")
+                {
+                    kRegretGreedyCycle(startNode, path, distanceMatrix, costLookupTable, k);
+                }
+                else if (algorithm_type == "w_kregret")
+                {
                     kRegretGreedyCycleWeighted(startNode, path, distanceMatrix, costLookupTable, k, lobj, lop1);
+                }
+                else if (algorithm_type == "kregret_mod")
+                {
+                    kRegretGreedyCycle_mod(startNode, path, distanceMatrix, costLookupTable, k);
+                }
+                else if (algorithm_type == "w_kregret_mod")
+                {
+                    kRegretGreedyCycleWeighted_mod(startNode, path, distanceMatrix, costLookupTable, k, lobj, lop1);
+                }
                 else
                 {
                     std::cerr << "Invalid algorithm type!" << std::endl;
