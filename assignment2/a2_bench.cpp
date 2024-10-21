@@ -379,8 +379,8 @@ std::vector<int> greedyCycle(int startNode, const std::vector<std::vector<int>> 
     return path;
 }
 
-bool sortbyCond(const std::pair<int, int> &a,
-                const std::pair<int, int> &b)
+bool sortbyCond(const std::pair<double, int> &a,
+                const std::pair<double, int> &b)
 {
     if (a.first != b.first)
         return (a.first < b.first);
@@ -402,18 +402,15 @@ std::vector<int> kRegretGreedyCycle(const int startNode, const std::vector<std::
     {
         // Go over all unvisited nodes and find the one that minimizes the increase in the objective function
         // While inserted at any position in the path
-        int bestRegret = INT_MIN;
-        int bestNode = -1;
-        int bestPosition = -1;
-
+        int AsmallestIncrease[2] = {INT_MAX, INT_MAX};
+        int AbestNode[2] = {-1, -1};
+        // Select two nodes via normal greedy approach
         for (int i = 0; i < n; i++)
         {
 
             // If node i is in the path then skip
             if (visited[i] == true)
                 continue;
-
-            std::vector<std::pair<int, int>> costs;
 
             for (int j = 0; j < path.size(); j++)
             {
@@ -425,18 +422,49 @@ std::vector<int> kRegretGreedyCycle(const int startNode, const std::vector<std::
                 int increase_A_at_j = distanceMatrix[left][i] + distanceMatrix[i][right] - distanceMatrix[left][right];
                 increase_A_at_j += costLookupTable[i];
 
-                costs.push_back(std::make_pair(increase_A_at_j, j));
+                for (int k = 0; k < 2; k++)
+                {
+                    if (increase_A_at_j < AsmallestIncrease[k])
+                    {
+                        AsmallestIncrease[k] = increase_A_at_j;
+                        AbestNode[k] = i;
+                        break;
+                    }
+                }
+            }
+        }
+
+        double bestRegret = -10000000.0;
+        int bestNode = -1;
+        int bestPosition = -1;
+
+        for (int i = 0; i < 2; i++)
+        {
+            int node = AbestNode[i];
+            std::vector<std::pair<double, int>> costs;
+
+            for (int j = 0; j < path.size(); j++)
+            {
+
+                int left = path[j];
+                int right = path[(j + 1) % path.size()]; // make sure we calculate it as a cycle
+
+                // check what happens if we insert here
+                int increase = distanceMatrix[left][node] + distanceMatrix[node][right] - distanceMatrix[left][right];
+                increase += costLookupTable[node];
+
+                costs.push_back(std::make_pair((double)increase, j));
             }
 
             // Sort a vector
             sort(costs.begin(), costs.end(), sortbyCond);
 
-            int regret = costs[1].first - costs[0].first;
+            double regret = costs[1].first - costs[0].first;
 
             if (regret > bestRegret)
             {
                 bestRegret = regret;
-                bestNode = i;
+                bestNode = node;
                 bestPosition = costs[0].second + 1;
             }
         }
@@ -450,39 +478,34 @@ std::vector<int> kRegretGreedyCycle(const int startNode, const std::vector<std::
     return path;
 }
 
-std::vector<int> kRegretGreedyCycleWeighted(const int startNode,
-                                            const std::vector<std::vector<int>> &distanceMatrix,
-                                            const std::vector<int> &costLookupTable,
-                                            int k,
-                                            float lambdaObjective = 0.5,
-                                            float lambdaOption1 = 0.5)
+void kRegretGreedyCycleWeighted(const int startNode,
+                                std::vector<int> &path,
+                                const std::vector<std::vector<int>> &distanceMatrix,
+                                const std::vector<int> &costLookupTable,
+                                int howMany,
+                                float lambdaObjective = 0.5,
+                                float lambdaOption1 = 0.5)
 {
     int n = distanceMatrix.size();
-    std::vector<int> path;
     std::vector<bool> visited(n, false);
 
     // Start from the startNode
     path.push_back(startNode);
     visited[startNode] = true;
 
-    while (path.size() < k)
+    while (path.size() < howMany)
     {
         // Go over all unvisited nodes and find the one that minimizes the increase in the objective function
         // While inserted at any position in the path
-        int bestScore = INT_MIN;
-        int bestNode = -1;
-        int bestPosition = -1;
-
-        // std::vector<std::vector<int>> insertCosts(n, std::vector<int>(path.size(), -1));
-
+        int AsmallestIncrease[2] = {INT_MAX, INT_MAX};
+        int AbestNode[2] = {-1, -1};
+        // Select two nodes via normal greedy approach
         for (int i = 0; i < n; i++)
         {
 
             // If node i is in the path then skip
             if (visited[i] == true)
                 continue;
-
-            std::vector<std::pair<int, int>> costs;
 
             for (int j = 0; j < path.size(); j++)
             {
@@ -494,31 +517,62 @@ std::vector<int> kRegretGreedyCycleWeighted(const int startNode,
                 int increase_A_at_j = distanceMatrix[left][i] + distanceMatrix[i][right] - distanceMatrix[left][right];
                 increase_A_at_j += costLookupTable[i];
 
-                costs.push_back(std::make_pair(increase_A_at_j, j));
+                for (int k = 0; k < 2; k++)
+                {
+                    if (increase_A_at_j < AsmallestIncrease[k])
+                    {
+                        AsmallestIncrease[k] = increase_A_at_j;
+                        AbestNode[k] = i;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // While inserted at any position in the path
+        double bestScore = -100000000.0;
+        int bestNode = -1;
+        int bestPosition = -1;
+
+        for (int i = 0; i < 2; i++)
+        {
+            int node = AbestNode[i];
+            std::vector<std::pair<double, int>> costs;
+
+            for (int j = 0; j < path.size(); j++)
+            {
+
+                int left = path[j];
+                int right = path[(j + 1) % path.size()]; // make sure we calculate it as a cycle
+
+                // check what happens if we insert here
+                int increase = distanceMatrix[left][node] + distanceMatrix[node][right] - distanceMatrix[left][right];
+                increase += costLookupTable[node];
+
+                costs.push_back(std::make_pair((double)increase, j));
             }
 
             // Sort a vector
             sort(costs.begin(), costs.end(), sortbyCond);
 
-            int regret = costs[1].first * (1 - lambdaOption1) - costs[0].first * lambdaOption1;
+            double regret = costs[1].first * (1.0 - lambdaOption1) - costs[0].first * lambdaOption1;
 
-            int score = -costs[0].first * lambdaObjective + regret * (1 - lambdaObjective);
+            double score = -costs[0].first * lambdaObjective + regret * (1.0 - lambdaObjective);
 
             if (score > bestScore)
             {
                 bestScore = score;
-                bestNode = i;
-                bestPosition = costs[0].second + 1;
+                bestNode = node;
+                bestPosition = costs[0].second;
             }
         }
 
         // Insert it into the path
-        path.insert(path.begin() + bestPosition, bestNode);
+        path.insert(path.begin() + bestPosition + 1, bestNode);
         visited[bestNode] = true;
     }
 
     path.push_back(startNode);
-    return path;
 }
 
 // Main with arguments
@@ -558,16 +612,16 @@ int main(int argc, char *argv[])
 
     // Generate 200 solutions
     int nSolutions = 200;
-    std::vector<std::vector<int>> solutions;
-    std::vector<int> totalCosts;
+    std::vector<std::vector<int>> solutions(nSolutions);
+    std::vector<int> totalCosts(nSolutions);
+    std::vector<float> lambdasObjective = {0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0};
+    std::vector<float> lambdasOption1 = {0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0};
 
-    std::vector<float> lambdasObjective = {0, 0.2, 0.4, 0.6, 0.8, 1};
-    std::vector<float> lambdasOption1 = {0, 0.2, 0.4, 0.6, 0.8, 1};
-    int totalIterations = lambdasObjective.size() * lambdasOption1.size();
     for (float lobj : lambdasObjective)
     {
         for (float lop1 : lambdasOption1)
         {
+
             std::cout << "----------------------" << std::endl;
             std::cout << "Iteration: " << lobj << " " << lop1 << std::endl;
             std::cout << "Lambda Objective: " << lobj << " Lambda Option 1: " << lop1 << std::endl;
@@ -597,7 +651,7 @@ int main(int argc, char *argv[])
                 else if (algorithm_type == "kregret")
                     path = kRegretGreedyCycle(startNode, distanceMatrix, costLookupTable, k);
                 else if (algorithm_type == "kregret2")
-                    path = kRegretGreedyCycleWeighted(startNode, distanceMatrix, costLookupTable, k, lobj, lop1);
+                    kRegretGreedyCycleWeighted(startNode, path, distanceMatrix, costLookupTable, k, lobj, lop1);
                 else
                 {
                     std::cerr << "Invalid algorithm type!" << std::endl;
@@ -615,8 +669,11 @@ int main(int argc, char *argv[])
                 assert(path.front() == startNode || (algorithm_type == "greedy"));
 
                 // Store the solution and its total cost
-                solutions.push_back(path);
-                totalCosts.push_back(totalCost);
+                solutions[i] = path;
+                totalCosts[i] = totalCost;
+
+                // Clean up the path
+                path.clear();
             }
 
             dumpToFile(input_file, algorithm_type, solutions, totalCosts, sn_type, std::to_string(lobj) + "_" + std::to_string(lop1));

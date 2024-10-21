@@ -434,14 +434,14 @@ std::vector<int> kRegretGreedyCycle(const int startNode, const std::vector<std::
             }
         }
 
-        int bestRegret = INT_MIN;
+        float bestRegret = -10000000;
         int bestNode = -1;
         int bestPosition = -1;
 
         for (int i = 0; i < 2; i++)
         {
             int node = AbestNode[i];
-            std::vector<std::pair<int, int>> costs;
+            std::vector<std::pair<float, int>> costs;
 
             for (int j = 0; j < path.size(); j++)
             {
@@ -453,13 +453,13 @@ std::vector<int> kRegretGreedyCycle(const int startNode, const std::vector<std::
                 int increase = distanceMatrix[left][node] + distanceMatrix[node][right] - distanceMatrix[left][right];
                 increase += costLookupTable[node];
 
-                costs.push_back(std::make_pair(increase, j));
+                costs.push_back(std::make_pair((float)increase, j));
             }
 
             // Sort a vector
             sort(costs.begin(), costs.end(), sortbyCond);
 
-            int regret = costs[1].first - costs[0].first;
+            float regret = costs[1].first - costs[0].first;
 
             if (regret > bestRegret)
             {
@@ -530,14 +530,14 @@ std::vector<int> kRegretGreedyCycleWeighted(const int startNode,
         }
 
         // While inserted at any position in the path
-        int bestScore = INT_MIN;
+        float bestScore = -100000000;
         int bestNode = -1;
         int bestPosition = -1;
 
         for (int i = 0; i < 2; i++)
         {
             int node = AbestNode[i];
-            std::vector<std::pair<int, int>> costs;
+            std::vector<std::pair<float, int>> costs;
 
             for (int j = 0; j < path.size(); j++)
             {
@@ -549,15 +549,15 @@ std::vector<int> kRegretGreedyCycleWeighted(const int startNode,
                 int increase = distanceMatrix[left][node] + distanceMatrix[node][right] - distanceMatrix[left][right];
                 increase += costLookupTable[node];
 
-                costs.push_back(std::make_pair(increase, j));
+                costs.push_back(std::make_pair((float)increase, j));
             }
 
             // Sort a vector
             sort(costs.begin(), costs.end(), sortbyCond);
 
-            int regret = costs[1].first * (1 - lambdaOption1) - costs[0].first * lambdaOption1;
+            float regret = costs[1].first * (1 - lambdaOption1) - costs[0].first * lambdaOption1;
 
-            int score = -costs[0].first * lambdaObjective + regret * (1 - lambdaObjective);
+            float score = -costs[0].first * lambdaObjective + regret * (1 - lambdaObjective);
 
             if (score > bestScore)
             {

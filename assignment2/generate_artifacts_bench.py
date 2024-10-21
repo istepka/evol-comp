@@ -22,7 +22,7 @@ PLOTS_DIR = Path('bench_plots')
 LATEX_TABLE_FILE = 'bench_results_table.tex'
 
 # Define Instances and Methods
-INSTANCES = ['TSPB']
+INSTANCES = ['TSPA']
 METHODS = ['greedy', 'nn1', 'nn2', 'random', 'kregret', 'kregret2']
 
 # Configure Matplotlib for serif fonts and even larger font sizes
@@ -128,8 +128,8 @@ def collect_results(instances: List[str], methods: List[str]) -> Dict[str, Dict[
 
     for method in ['kregret2']:
         for instance in instances:
-            for l1 in ["0.000000", "0.200000", "0.400000", "0.600000", "0.800000", "1.000000"]:
-                for l2 in ["0.000000", "0.200000", "0.400000", "0.600000", "0.800000", "1.000000"]:
+            for l1 in ["0.000000", "0.250000", "0.500000", "0.7500000", "1.000000"]:
+                for l2 in ["0.000000", "0.250000", "0.500000", "0.750000", "1.000000"]:
                     file_name = f'{method}_each_{instance}.csv_{l1}_{l2}.solution'
                     file_path = RESULTS_DIR / file_name
                     if file_path.exists():
@@ -406,7 +406,7 @@ def do_visual_heatmap(all_results: Dict[str, Dict[str, Dict[str, Any]]], instanc
     plt.tight_layout()
 
     # Save the plot as PDF
-    plot_filename = 'heatmap_best_costB.pdf'
+    plot_filename = 'heatmap_best_costA.pdf'
     plot_path = output_dir / plot_filename
     plt.savefig(plot_path, format='pdf')
 
