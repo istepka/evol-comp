@@ -98,7 +98,7 @@ bool dumpToFile(const std::string &input_file,
     system(command.c_str());
     // Save average, worst, best to file
     additionalString = "_" + additionalString;
-    std::string filename = "./results/" + algorithm_type + "_" + sn_type + '_' + input_file + additionalString + ".solution";
+    std::string filename = "./results/" + algorithm_type + "_" + sn_type + '_' + input_file + ".solution";
     std::ofstream file(filename.c_str());
 
     file << "Average cost: " << average << std::endl;
@@ -402,18 +402,15 @@ std::vector<int> kRegretGreedyCycle(const int startNode, const std::vector<std::
     {
         // Go over all unvisited nodes and find the one that minimizes the increase in the objective function
         // While inserted at any position in the path
-        int bestRegret = INT_MIN;
-        int bestNode = -1;
-        int bestPosition = -1;
-
+        int AsmallestIncrease[2] = {INT_MAX, INT_MAX};
+        int AbestNode[2] = {-1, -1};
+        // Select two nodes via normal greedy approach
         for (int i = 0; i < n; i++)
         {
 
             // If node i is in the path then skip
             if (visited[i] == true)
                 continue;
-
-            std::vector<std::pair<int, int>> costs;
 
             for (int j = 0; j < path.size(); j++)
             {
@@ -425,7 +422,38 @@ std::vector<int> kRegretGreedyCycle(const int startNode, const std::vector<std::
                 int increase_A_at_j = distanceMatrix[left][i] + distanceMatrix[i][right] - distanceMatrix[left][right];
                 increase_A_at_j += costLookupTable[i];
 
-                costs.push_back(std::make_pair(increase_A_at_j, j));
+                for (int k = 0; k < 2; k++)
+                {
+                    if (increase_A_at_j < AsmallestIncrease[k])
+                    {
+                        AsmallestIncrease[k] = increase_A_at_j;
+                        AbestNode[k] = i;
+                        break;
+                    }
+                }
+            }
+        }
+
+        int bestRegret = INT_MIN;
+        int bestNode = -1;
+        int bestPosition = -1;
+
+        for (int i = 0; i < 2; i++)
+        {
+            int node = AbestNode[i];
+            std::vector<std::pair<int, int>> costs;
+
+            for (int j = 0; j < path.size(); j++)
+            {
+
+                int left = path[j];
+                int right = path[(j + 1) % path.size()]; // make sure we calculate it as a cycle
+
+                // check what happens if we insert here
+                int increase = distanceMatrix[left][node] + distanceMatrix[node][right] - distanceMatrix[left][right];
+                increase += costLookupTable[node];
+
+                costs.push_back(std::make_pair(increase, j));
             }
 
             // Sort a vector
@@ -436,7 +464,7 @@ std::vector<int> kRegretGreedyCycle(const int startNode, const std::vector<std::
             if (regret > bestRegret)
             {
                 bestRegret = regret;
-                bestNode = i;
+                bestNode = node;
                 bestPosition = costs[0].second + 1;
             }
         }
@@ -469,20 +497,15 @@ std::vector<int> kRegretGreedyCycleWeighted(const int startNode,
     {
         // Go over all unvisited nodes and find the one that minimizes the increase in the objective function
         // While inserted at any position in the path
-        int bestScore = INT_MIN;
-        int bestNode = -1;
-        int bestPosition = -1;
-
-        // std::vector<std::vector<int>> insertCosts(n, std::vector<int>(path.size(), -1));
-
+        int AsmallestIncrease[2] = {INT_MAX, INT_MAX};
+        int AbestNode[2] = {-1, -1};
+        // Select two nodes via normal greedy approach
         for (int i = 0; i < n; i++)
         {
 
             // If node i is in the path then skip
             if (visited[i] == true)
                 continue;
-
-            std::vector<std::pair<int, int>> costs;
 
             for (int j = 0; j < path.size(); j++)
             {
@@ -494,7 +517,39 @@ std::vector<int> kRegretGreedyCycleWeighted(const int startNode,
                 int increase_A_at_j = distanceMatrix[left][i] + distanceMatrix[i][right] - distanceMatrix[left][right];
                 increase_A_at_j += costLookupTable[i];
 
-                costs.push_back(std::make_pair(increase_A_at_j, j));
+                for (int k = 0; k < 2; k++)
+                {
+                    if (increase_A_at_j < AsmallestIncrease[k])
+                    {
+                        AsmallestIncrease[k] = increase_A_at_j;
+                        AbestNode[k] = i;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // While inserted at any position in the path
+        int bestScore = INT_MIN;
+        int bestNode = -1;
+        int bestPosition = -1;
+
+        for (int i = 0; i < 2; i++)
+        {
+            int node = AbestNode[i];
+            std::vector<std::pair<int, int>> costs;
+
+            for (int j = 0; j < path.size(); j++)
+            {
+
+                int left = path[j];
+                int right = path[(j + 1) % path.size()]; // make sure we calculate it as a cycle
+
+                // check what happens if we insert here
+                int increase = distanceMatrix[left][node] + distanceMatrix[node][right] - distanceMatrix[left][right];
+                increase += costLookupTable[node];
+
+                costs.push_back(std::make_pair(increase, j));
             }
 
             // Sort a vector
@@ -507,11 +562,12 @@ std::vector<int> kRegretGreedyCycleWeighted(const int startNode,
             if (score > bestScore)
             {
                 bestScore = score;
-                bestNode = i;
+                bestNode = node;
                 bestPosition = costs[0].second + 1;
             }
         }
 
+        // std::cout << bestNode << " " << visited[bestNode] << std::endl;
         // Insert it into the path
         path.insert(path.begin() + bestPosition, bestNode);
         visited[bestNode] = true;
