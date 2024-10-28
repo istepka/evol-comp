@@ -1,0 +1,252 @@
+----------------------------------------
+Processing Input File: TSPA.csv
+----------------------------------------
+  Running Method: greedy_two_nodes_random
+Search Type: greedy
+Intra Move Type: two_nodes
+Start Type: random
+Number of nodes: 200
+--------------------------------------------------------------------------------
+Method: greedy_two_nodes_random
+Average Cost: 106281
+Minimum Cost: 91834
+Maximum Cost: 124857
+Average Running Time: 0.223078 seconds
+Average cost: 106281
+Worst cost: 124857
+Best cost: 91834
+    Completed Method: greedy_two_nodes_random
+  Running Method: greedy_two_nodes_greedy
+Search Type: greedy
+Intra Move Type: two_nodes
+Start Type: greedy
+Number of nodes: 200
+--------------------------------------------------------------------------------
+Method: greedy_two_nodes_greedy
+Average Cost: 72517.7
+Minimum Cost: 71488
+Maximum Cost: 74197
+Average Running Time: 0.00287612 seconds
+Average cost: 72517.7
+Worst cost: 74197
+Best cost: 71488
+    Completed Method: greedy_two_nodes_greedy
+  Running Method: greedy_two_edges_random
+Search Type: greedy
+Intra Move Type: two_edges
+Start Type: random
+Number of nodes: 200
+--------------------------------------------------------------------------------
+Method: greedy_two_edges_random
+Average Cost: 105826
+Minimum Cost: 95824
+Maximum Cost: 119228
+Average Running Time: 0.219368 seconds
+Average cost: 105826
+Worst cost: 119228
+Best cost: 95824
+    Completed Method: greedy_two_edges_random
+  Running Method: greedy_two_edges_greedy
+Search Type: greedy
+Intra Move Type: two_edges
+Start Type: greedy
+Number of nodes: 200
+--------------------------------------------------------------------------------
+Method: greedy_two_edges_greedy
+Average Cost: 72517.7
+Minimum Cost: 71488
+Maximum Cost: 74197
+Average Running Time: 0.00274678 seconds
+Average cost: 72517.7
+Worst cost: 74197
+Best cost: 71488
+    Completed Method: greedy_two_edges_greedy
+  Running Method: steepest_two_nodes_random
+Search Type: steepest
+Intra Move Type: two_nodes
+Start Type: random
+Number of nodes: 200
+--------------------------------------------------------------------------------
+Method: steepest_two_nodes_random
+Average Cost: 108580
+Minimum Cost: 98841
+Maximum Cost: 120480
+Average Running Time: 0.0949807 seconds
+Average cost: 108580
+Worst cost: 120480
+Best cost: 98841
+    Completed Method: steepest_two_nodes_random
+  Running Method: steepest_two_nodes_greedy
+Search Type: steepest
+Intra Move Type: two_nodes
+Start Type: greedy
+Number of nodes: 200
+--------------------------------------------------------------------------------
+Method: steepest_two_nodes_greedy
+Average Cost: 72516.4
+Minimum Cost: 71488
+Maximum Cost: 74197
+Average Running Time: 0.00237896 seconds
+Average cost: 72516.4
+Worst cost: 74197
+Best cost: 71488
+    Completed Method: steepest_two_nodes_greedy
+  Running Method: steepest_two_edges_random
+Search Type: steepest
+Intra Move Type: two_edges
+Start Type: random
+Number of nodes: 200
+--------------------------------------------------------------------------------
+Method: steepest_two_edges_random
+Average Cost: 108236
+Minimum Cost: 93856
+Maximum Cost: 118576
+Average Running Time: 0.0940772 seconds
+Average cost: 108236
+Worst cost: 118576
+Best cost: 93856
+    Completed Method: steepest_two_edges_random
+  Running Method: steepest_two_edges_greedy
+Search Type: steepest
+Intra Move Type: two_edges
+Start Type: greedy
+Number of nodes: 200
+--------------------------------------------------------------------------------
+Method: steepest_two_edges_greedy
+Average Cost: 72516.4
+Minimum Cost: 71488
+Maximum Cost: 74197
+Average Running Time: 0.00237321 seconds
+Average cost: 72516.4
+Worst cost: 74197
+Best cost: 71488
+    Completed Method: steepest_two_edges_greedy
+Completed processing 'TSPA.csv'.
+----------------------------------------
+Processing Input File: TSPB.csv
+----------------------------------------
+  Running Method: greedy_two_nodes_random
+Search Type: greedy
+Intra Move Type: two_nodes
+Start Type: random
+Number of nodes: 200
+--------------------------------------------------------------------------------
+Method: greedy_two_nodes_random
+Average Cost: 72376.2
+Minimum Cost: 64066
+Maximum Cost: 83097
+Average Running Time: 0.263889 seconds
+Average cost: 72376.2
+Worst cost: 83097
+Best cost: 64066
+    Completed Method: greedy_two_nodes_random
+  Running Method: greedy_two_nodes_greedy
+Search Type: greedy
+Intra Move Type: two_nodes
+Start Type: greedy
+Number of nodes: 200
+--------------------------------------------------------------------------------
+Method: greedy_two_nodes_greedy
+Average Cost: 51248.8
+Minimum Cost: 48942
+Maximum Cost: 57324
+Average Running Time: 0.00428777 seconds
+Average cost: 51248.8
+Worst cost: 57324
+Best cost: 48942
+    Completed Method: greedy_two_nodes_greedy
+  Running Method: greedy_two_edges_random
+Search Type: greedy
+Intra Move Type: two_edges
+Start Type: random
+Number of nodes: 200
+--------------------------------------------------------------------------------
+Method: greedy_two_edges_random
+Average Cost: 72477.8
+Minimum Cost: 63757
+Maximum Cost: 85198
+Average Running Time: 0.296412 seconds
+Average cost: 72477.8
+Worst cost: 85198
+Best cost: 63757
+    Completed Method: greedy_two_edges_random
+  Running Method: greedy_two_edges_greedy
+Search Type: greedy
+Intra Move Type: two_edges
+Start Type: greedy
+Number of nodes: 200
+--------------------------------------------------------------------------------
+Method: greedy_two_edges_greedy
+Average Cost: 51255.8
+Minimum Cost: 48942
+Maximum Cost: 57324
+Average Running Time: 0.00437625 seconds
+Average cost: 51255.8
+Worst cost: 57324
+Best cost: 48942
+    Completed Method: greedy_two_edges_greedy
+  Running Method: steepest_two_nodes_random
+Search Type: steepest
+Intra Move Type: two_nodes
+Start Type: random
+Number of nodes: 200
+--------------------------------------------------------------------------------
+Method: steepest_two_nodes_random
+Average Cost: 75769.1
+Minimum Cost: 63849
+Maximum Cost: 88593
+Average Running Time: 0.125803 seconds
+Average cost: 75769.1
+Worst cost: 88593
+Best cost: 63849
+    Completed Method: steepest_two_nodes_random
+  Running Method: steepest_two_nodes_greedy
+Search Type: steepest
+Intra Move Type: two_nodes
+Start Type: greedy
+Number of nodes: 200
+--------------------------------------------------------------------------------
+Method: steepest_two_nodes_greedy
+Average Cost: 51260.4
+Minimum Cost: 48942
+Maximum Cost: 57324
+Average Running Time: 0.00375214 seconds
+Average cost: 51260.4
+Worst cost: 57324
+Best cost: 48942
+    Completed Method: steepest_two_nodes_greedy
+  Running Method: steepest_two_edges_random
+Search Type: steepest
+Intra Move Type: two_edges
+Start Type: random
+Number of nodes: 200
+--------------------------------------------------------------------------------
+Method: steepest_two_edges_random
+Average Cost: 75383.4
+Minimum Cost: 62113
+Maximum Cost: 84616
+Average Running Time: 0.126794 seconds
+Average cost: 75383.4
+Worst cost: 84616
+Best cost: 62113
+    Completed Method: steepest_two_edges_random
+  Running Method: steepest_two_edges_greedy
+Search Type: steepest
+Intra Move Type: two_edges
+Start Type: greedy
+Number of nodes: 200
+--------------------------------------------------------------------------------
+Method: steepest_two_edges_greedy
+Average Cost: 51260.4
+Minimum Cost: 48942
+Maximum Cost: 57324
+Average Running Time: 0.0036073 seconds
+Average cost: 51260.4
+Worst cost: 57324
+Best cost: 48942
+    Completed Method: steepest_two_edges_greedy
+Completed processing 'TSPB.csv'.
+----------------------------------------
+Cleaning up by removing the executable 'a3'.
+Executable 'a3' removed.
+----------------------------------------
