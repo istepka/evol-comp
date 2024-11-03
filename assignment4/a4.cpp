@@ -240,7 +240,7 @@ std::pair<std::vector<int>, int> findKnearestNeighbors(
 
     
     std::vector<int> nearestNeighborsSimple(k);
-    int furthest = nearestNeighbors.back().first;
+    int furthest = nearestNeighbors.back().second;
 
     for (int i = 0; i < k; i++) {
         nearestNeighborsSimple[i] = nearestNeighbors[i].first;
@@ -316,7 +316,7 @@ void cmls(std::vector<int> &solution, const std::vector<std::vector<int>> &dista
         }
 
         if (bestDelta <= 0){
-            std::cout<<"Best delta is "<<bestDelta<<" so there is no point in going further"<<std::endl;
+            // std::cout<<"Best delta is "<<bestDelta<<" so there is no point in going further"<<std::endl;
             break;
         }
 
@@ -374,6 +374,245 @@ void cmls(std::vector<int> &solution, const std::vector<std::vector<int>> &dista
         //     std::cout << std::endl;
 
         //     // if (iteration % 10 == 0)
+        //     //     exit(0);
+        // }
+    }
+}
+
+
+std::vector<int>findKnearestNeighborsWithin(
+    int current, 
+    int k, 
+    const std::vector<std::vector<int>> &distanceMatrix, 
+    const std::vector<int> &costLookupTable, 
+    const std::vector<int> &solution
+    ){
+    // Find 10 nearest neighbors by looking up the distance matrix, additonally add the cost of the node and sort them
+    std::vector<std::pair<int, float>> nearestNeighbors;
+
+    // Prohibit immediate neighbors
+    int prohibited[2] = {solution[safeIndex(current - 1, solution.size())], solution[safeIndex(current + 1, solution.size())]};
+
+    for (int j = 0; j < solution.size(); j++) {
+        if (solution[j] == current || solution[j] == prohibited[0] || solution[j] == prohibited[1]) {
+            continue; 
+        }
+        nearestNeighbors.push_back(std::make_pair(solution[j], distanceMatrix[current][solution[j]] + costLookupTable[solution[j]]));
+    }
+
+    // Sort the nearest neighbors
+    std::sort(nearestNeighbors.begin(), nearestNeighbors.end(), [](const std::pair<int, float> &a, const std::pair<int, float> &b) {
+        return a.second < b.second;
+    });
+
+    // Trim the list to k
+    if (nearestNeighbors.size() > k) {
+        nearestNeighbors.resize(k);
+    }
+
+    std::vector<int> nearestNeighborsSimple(k);
+
+    for (int i = 0; i < k; i++) {
+        nearestNeighborsSimple[i] = nearestNeighbors[i].first;
+    }
+
+    // for (auto x : nearestNeighborsSimple) {
+    //     std::cout << x << " ";
+    // }
+    // std::cout << std::endl;
+
+
+    return nearestNeighborsSimple;
+}
+
+void cmls_edge(std::vector<int> &solution, const std::vector<std::vector<int>> &distanceMatrix, const std::vector<int> &costLookupTable)
+{
+    int solutionSize = solution.size();
+    int lastBestDelta = 0;
+    int iteration = 0;
+
+    // // Print out the solution
+    // for (auto x : solution) {
+    //     std::cout << x << " ";
+    // }
+    // std::cout << std::endl;
+
+    std::unordered_map<int, std::vector<int>> memoizationTable(solutionSize);
+    // std::vector<int> memoizationTableFurthest(solutionSize);
+    // std::unordered_map<int, std::set<int>> mappingTable;
+
+    while (true) {
+        iteration++;
+
+        int bestDelta = -INT32_MAX;
+        std::pair<int, int> bestPair;
+        std::pair<int, int> otherTwo;
+        std::string rotation_type;
+
+        for (int i = 0; i < solutionSize; i++) {
+            int current = solution[i];
+
+           
+            if (iteration == 1 || memoizationTable[i].empty()) {
+                // std::cout<<"Memoization table is empty for node "<<current<<std::endl;
+
+                std::vector<int> p = findKnearestNeighborsWithin(current, 10, distanceMatrix, costLookupTable, solution);
+                memoizationTable[solution[i]] = p; 
+                // memoizationTableFurthest[i] = p.second;
+                // fillOutMapping(mappingTable, memoizationTable[i], i);
+            }
+
+
+            for (int candidate : memoizationTable[solution[i]]) { // j is the index of the node in the solution
+                for (int k = -1; k <= 1; k+=2) { // k acts as a multiplier to get the next and next next node both ways
+                    
+                    // Find j 
+                    int j = std::find(solution.begin(), solution.end(), candidate) - solution.begin();
+
+                    // TODO: Both sides
+                    int aindex = safeIndex(i + k, solutionSize);
+                    int bindex = safeIndex(j + k, solutionSize);
+                    int ap1_node = solution[aindex]; // Current +- 1
+                    int bp1_node = solution[bindex]; // Current +- 1
+
+                    int newc = distanceMatrix[current][candidate] + distanceMatrix[ap1_node][bp1_node];
+                    int oldc = distanceMatrix[current][ap1_node] + distanceMatrix[candidate][bp1_node];
+                    int delta = oldc - newc; // The lowest the better
+
+                    if (delta > bestDelta) {
+                        bestDelta = delta;
+                        bestPair = std::make_pair(i, j); // Exchange ip1 and c to add proper candidate edge
+                        otherTwo = std::make_pair(aindex, bindex);
+                        rotation_type = k == 1 ? "positive" : "negative";
+                    }
+                }
+
+            }
+        }
+
+        if (bestDelta <= 0){
+            // std::cout<<"Best delta is "<<bestDelta<<" so there is no point in going further"<<std::endl;
+            break;
+        }
+
+        // Insert the candidate edge at ip2
+        // If positive then we need to stich the solution in a following way:
+        // [0 : a] [b : a1] [b1 : n]
+        // If negative then its:
+        // [0 : a1] [b1 : a] [b : n]
+        // Where a and a1 are smaller and b and b1 are larger
+        // We're adding the edge between a and b and a1 and b1
+        int a = bestPair.first < bestPair.second ? bestPair.first : bestPair.second;
+        int b = bestPair.second > bestPair.first ? bestPair.second : bestPair.first;
+        int a1 = a == bestPair.first ? otherTwo.first : otherTwo.second;
+        int b1 = b == bestPair.first ? otherTwo.first : otherTwo.second;
+
+        // If a == 0 then we need to move first element to the end, decrement all indices by 1 and swap a and b
+        if (a == 0) {
+            std::rotate(solution.begin(), solution.begin() + 1, solution.end());
+            a = solutionSize - 1;
+            a1 = safeIndex(a1 - 1, solutionSize);
+            b = safeIndex(b - 1, solutionSize);
+            b1 = safeIndex(b1 - 1, solutionSize);
+
+            std::swap(a, b);
+            std::swap(a1, b1);
+        }
+        
+        if (b1 == 0) // then we need to move first element to the end, decrement all indices by 1 , no need to swap a and b
+        {
+            std::rotate(solution.begin(), solution.begin() + 1, solution.end());
+            a = safeIndex(a - 1, solutionSize);
+            a1 = safeIndex(a1 - 1, solutionSize);
+            b = safeIndex(b - 1, solutionSize);
+            b1 = solutionSize - 1;
+        }
+
+        // std::cout << "Starting rotation: " << rotation_type << std::endl;
+        // std::cout << "Indices: a: " << a << " a1: " << a1 << " b: " << b << " b1: " << b1 << std::endl;
+
+        std::vector<int> newSolution;
+
+        if (rotation_type == "positive") {
+            // Extract middle chunk
+            std::vector<int> middleChunk(solution.begin() + a1, solution.begin() + b + 1); // inclusive
+
+            // Reverse the middle chunk
+            std::reverse(middleChunk.begin(), middleChunk.end());
+
+            // Create new vector and insert the chunks
+            newSolution.insert(newSolution.begin(), solution.begin(), solution.begin() + a + 1);
+            newSolution.insert(newSolution.end(), middleChunk.begin(), middleChunk.end());
+            newSolution.insert(newSolution.end(), solution.begin() + b1, solution.end());
+
+        } else {
+            // Extract middle chunk
+            std::vector<int> middleChunk(solution.begin() + a , solution.begin() + b1 + 1); // inclusive
+
+            // Reverse the middle chunk
+            std::reverse(middleChunk.begin(), middleChunk.end());
+
+            // Create new vector and insert the chunks
+            newSolution.insert(newSolution.begin(), solution.begin(), solution.begin() + a1 + 1);
+            newSolution.insert(newSolution.end(), middleChunk.begin(), middleChunk.end());
+            newSolution.insert(newSolution.end(), solution.begin() + b, solution.end());
+        }
+
+        assert(newSolution.size() == solution.size());
+
+
+        solution = newSolution;
+
+        
+
+
+
+
+        // // Clear memoized stuff based on mapping table for toAdd i.e., we need to recalculate the nearest neighbors when toAdd was one of them
+        // for (int i : mappingTable[toAdd]) {
+        //     memoizationTable[i].clear();
+        //     memoizationTableFurthest[i] = 0;
+        // }
+
+        // // Remove the old node from the mapping table
+        // mappingTable.erase(toAdd);
+
+
+        // // Update the memoization table by 
+        // // 1. Clearing the vector of the old node and triggering a recalculation of the nearest neighbors 
+        // memoizationTable[swap_location].clear();
+        // memoizationTableFurthest[swap_location] = 0;
+
+        // // 2. Calculating the distance of toRemove node to all others, erasing memoization table entries whenever toRemove is closer than the current furthest
+        // for (int i = 0; i < solutionSize; i++) {
+        //     if (memoizationTable[i].empty()) {
+        //         continue;
+        //     }
+
+        //     int current = solution[i];
+        //     int furthest = memoizationTableFurthest[i];
+
+        //     int newFurthest = distanceMatrix[current][toRemove] + costLookupTable[toRemove];
+
+        //     if (newFurthest < furthest) {
+        //         memoizationTable[i].clear();
+        //         memoizationTableFurthest[i] = 0;
+        //     }
+        // }
+
+
+
+        // if (iteration % 1 == 0) {
+        //     std::cout << "Iteration: " << iteration << " Best delta: " << bestDelta << std::endl;
+        //     std::cout << "Indices: " << a << " " << b << " " << a1 << " " << b1 << std::endl;
+        //     for (auto x : solution) {
+        //         std::cout << x << " ";
+        //     }
+        //     std::cout << std::endl;
+        //     int tc = calculateTotalCost(solution, distanceMatrix, costLookupTable);
+        //     std::cout << "Total cost after insertion: " << tc << std::endl;
+
+        //     // if (iteration % 50 == 0)
         //     //     exit(0);
         // }
     }
@@ -440,6 +679,8 @@ int main(int argc, char *argv[])
 
         if (algorithm_type == "cmls")
             cmls(path, distanceMatrix, costLookupTable);
+        if (algorithm_type == "cmls_edge")
+            cmls_edge(path, distanceMatrix, costLookupTable);
         else  
             std::cerr << "Invalid algorithm type!" << std::endl;
 
@@ -448,13 +689,6 @@ int main(int argc, char *argv[])
         {
             path.push_back(path.front());
         }
-
-        // Print the path
-        for (int node : path)
-        {
-            std::cout << node << " ";
-        }
-        std::cout << std::endl;
 
         int totalCost = calculateTotalCost(path, distanceMatrix, costLookupTable);
 
