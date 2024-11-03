@@ -356,23 +356,23 @@ bool greedyLocalSearch(std::vector<int> &path, int &currentCost, const std::stri
         }
     }
 
-    if (intraMoveType == "two_edges" || intraMoveType == "both") {
-        for (int i = 0; i < n - 1; i++) {
-            for (int j = i + 2; j < n; j++) {
-                allMoves.push_back(std::make_tuple("two_edges_exchange", i, j));
-            }
-        }
-    }
+    // if (intraMoveType == "two_edges" || intraMoveType == "both") {
+    //     for (int i = 0; i < n - 1; i++) {
+    //         for (int j = i + 2; j < n; j++) {
+    //             allMoves.push_back(std::make_tuple("two_edges_exchange", i, j));
+    //         }
+    //     }
+    // }
 
-    // Inter-route moves: swap a node in the path with a node not in the path
-    for (int i = 0; i < n; i++) {
-        for (int outNode = 0; outNode < distanceMatrix.size(); outNode++) {
-            if (std::find(path.begin(), path.end() -1, outNode) != path.end() -1)
-                continue; // Node already in the path
+    // // Inter-route moves: swap a node in the path with a node not in the path
+    // for (int i = 0; i < n; i++) {
+    //     for (int outNode = 0; outNode < distanceMatrix.size(); outNode++) {
+    //         if (std::find(path.begin(), path.end() -1, outNode) != path.end() -1)
+    //             continue; // Node already in the path
 
-            allMoves.push_back(std::make_tuple("inter_route_swap", i, outNode));
-        }
-    }
+    //         allMoves.push_back(std::make_tuple("inter_route_swap", i, outNode));
+    //     }
+    // }
 
     // Shuffle the moves to randomize the order
     std::shuffle(allMoves.begin(), allMoves.end(), rng);
@@ -388,12 +388,12 @@ bool greedyLocalSearch(std::vector<int> &path, int &currentCost, const std::stri
         if (mType == "two_nodes_exchange") {
             valid = twoNodesExchange(path, delta, distanceMatrix, mPos1, mPos2);
         }
-        else if (mType == "two_edges_exchange") {
-            valid = twoEdgesExchange(path, delta, distanceMatrix, mPos1, mPos2);
-        }
-        else if (mType == "inter_route_swap") {
-            valid = interRouteExchange(path, delta, distanceMatrix, costLookupTable, mPos1, mPos2);
-        }
+        // else if (mType == "two_edges_exchange") {
+        //     valid = twoEdgesExchange(path, delta, distanceMatrix, mPos1, mPos2);
+        // }
+        // else if (mType == "inter_route_swap") {
+        //     valid = interRouteExchange(path, delta, distanceMatrix, costLookupTable, mPos1, mPos2);
+        // }
 
         if (valid && delta < 0) { // Improvement found
             // Apply the move
@@ -437,8 +437,7 @@ bool steepestLocalSearch(std::vector<int> &path, int &currentCost, const std::st
         for (int i = 0; i < n; i++) {
             for (int j = i + 1; j < n; j++) {
                 int delta = 0;
-                std::vector<int> tempPath = path;
-                if (twoNodesExchange(tempPath, delta, distanceMatrix, i, j)) {
+                if (twoNodesExchange(path, delta, distanceMatrix, i, j)) {
                     if (delta < bestDelta) {
                         bestDelta = delta;
                         moveType = "two_nodes_exchange";
@@ -450,55 +449,56 @@ bool steepestLocalSearch(std::vector<int> &path, int &currentCost, const std::st
         }
     }
 
-    if (intraMoveType == "two_edges" || intraMoveType == "both") {
-        for (int i = 0; i < n - 1; i++) {
-            for (int j = i + 2; j < n; j++) {
-                int delta = 0;
-                std::vector<int> tempPath = path;
-                if (twoEdgesExchange(tempPath, delta, distanceMatrix, i, j)) {
-                    if (delta < bestDelta) {
-                        bestDelta = delta;
-                        moveType = "two_edges_exchange";
-                        pos1 = i;
-                        pos2 = j;
-                    }
-                }
-            }
-        }
-    }
+    // if (intraMoveType == "two_edges" || intraMoveType == "both") {
+    //     for (int i = 0; i < n - 1; i++) {
+    //         for (int j = i + 2; j < n; j++) {
+    //             int delta = 0;
+    //             std::vector<int> tempPath = path;
+    //             if (twoEdgesExchange(tempPath, delta, distanceMatrix, i, j)) {
+    //                 if (delta < bestDelta) {
+    //                     bestDelta = delta;
+    //                     moveType = "two_edges_exchange";
+    //                     pos1 = i;
+    //                     pos2 = j;
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
 
-    // Iterate over all possible inter-route moves
-    for (int i = 0; i < n; i++) {
-        for (int outNode = 0; outNode < distanceMatrix.size(); outNode++) {
-            if (std::find(path.begin(), path.end() -1, outNode) != path.end() -1)
-                continue; // Node already in the path
+    // // Iterate over all possible inter-route moves
+    // for (int i = 0; i < n; i++) {
+    //     for (int outNode = 0; outNode < distanceMatrix.size(); outNode++) {
+    //         if (std::find(path.begin(), path.end() -1, outNode) != path.end() -1)
+    //             continue; // Node already in the path
 
-            int delta = 0;
-            std::vector<int> tempPath = path;
-            if (interRouteExchange(tempPath, delta, distanceMatrix, costLookupTable, i, outNode)) {
-                if (delta < bestDelta) {
-                    bestDelta = delta;
-                    moveType = "inter_route_swap";
-                    pos1 = i;
-                    pos2 = outNode;
-                }
-            }
-        }
-    }
+    //         int delta = 0;
+    //         std::vector<int> tempPath = path;
+    //         if (interRouteExchange(tempPath, delta, distanceMatrix, costLookupTable, i, outNode)) {
+    //             if (delta < bestDelta) {
+    //                 bestDelta = delta;
+    //                 moveType = "inter_route_swap";
+    //                 pos1 = i;
+    //                 pos2 = outNode;
+    //             }
+    //         }
+    //     }
+    // }
 
     // Apply the best move found
     if (bestDelta < 0) { // Improvement found
         if (moveType == "two_nodes_exchange") {
             std::swap(path[pos1], path[pos2]);
         }
-        else if (moveType == "two_edges_exchange") {
-            std::reverse(path.begin() + pos1 + 1, path.begin() + pos2 + 1);
-        }
-        else if (moveType == "inter_route_swap") {
-            path[pos1] = pos2;
-        }
+        // else if (moveType == "two_edges_exchange") {
+        //     std::reverse(path.begin() + pos1 + 1, path.begin() + pos2 + 1);
+        // }
+        // else if (moveType == "inter_route_swap") {
+        //     path[pos1] = pos2;
+        // }
 
         currentCost += bestDelta;
+        std::cout << "currentCost: " << currentCost << std::endl;
         improvement = true;
     }
 
