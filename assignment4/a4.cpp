@@ -13,6 +13,8 @@
 #include <climits>
 #include <unordered_map>
 #include <set>
+#include <ctime>
+
 
 /*
 ## Problem description
@@ -76,6 +78,7 @@ bool dumpToFile(const std::string &input_file,
                 const std::string &algorithm_type,
                 const std::vector<std::vector<int>> &solutions,
                 const std::vector<int> &totalCosts,
+                const float &executionTime,
                 const std::string &sn_type,
                 std::string additionalString = "")
 {
@@ -93,6 +96,7 @@ bool dumpToFile(const std::string &input_file,
     std::cout << "Average cost: " << average << std::endl;
     std::cout << "Worst cost: " << worst_cost << std::endl;
     std::cout << "Best cost: " << best_cost << std::endl;
+    std::cout << "Execution time: " << executionTime << " ms" << std::endl;
 
     // create results directory if it doesn't exist
     std::string dir = "./results";
@@ -118,6 +122,8 @@ bool dumpToFile(const std::string &input_file,
         file << best_path[i] << " ";
     }
     file << std::endl;
+
+    file << "Execution time: " << executionTime << std::endl;
 
     file.flush();
     file.close();
@@ -362,20 +368,6 @@ void cmls(std::vector<int> &solution, const std::vector<std::vector<int>> &dista
             }
         }
 
-
-        // if (iteration % 1 == 0) {
-        //     std::cout << "Iteration: " << iteration << " Best delta: " << bestDelta << std::endl;
-        //     std::cout << "Inserting " << bestPair.second << " at " << swap_location << " to replace " << bestPair.first << std::endl;
-        //     int tc = calculateTotalCost(solution, distanceMatrix, costLookupTable);
-        //     std::cout << "Total cost after insertion: " << tc << std::endl;
-        //     for (auto x : solution) {
-        //         std::cout << x << " ";
-        //     }
-        //     std::cout << std::endl;
-
-        //     // if (iteration % 10 == 0)
-        //     //     exit(0);
-        // }
     }
 }
 
@@ -618,7 +610,48 @@ void cmls_edge(std::vector<int> &solution, const std::vector<std::vector<int>> &
     }
 }
 
+// Helper function to trim whitespace from a string
+std::string trim(const std::string &str) {
+    size_t first = str.find_first_not_of(' ');
+    size_t last = str.find_last_not_of(' ');
+    return (first == std::string::npos) ? "" : str.substr(first, last - first + 1);
+}
 
+std::vector<std::vector<int>> solutionsFromFile(const std::string &filename) {
+    std::ifstream file(filename);
+    std::vector<std::vector<int>> data;
+
+    // Check if the file opened successfully
+    if (!file) {
+        throw std::runtime_error("Unable to open file: " + filename);
+    }
+
+    // Each line is one solution, comma separated integers
+    std::string line;
+
+    while (std::getline(file, line)) {
+        std::stringstream ss(line);
+        std::string item;
+        std::vector<int> row;
+
+        // Split the line by ',' and convert to integers
+        while (std::getline(ss, item, ',')) {
+            item = trim(item); // Trim whitespace
+            try {
+                row.push_back(std::stoi(item));
+            } catch (const std::invalid_argument&) {
+                throw std::runtime_error("Invalid integer in file: " + item);
+            } catch (const std::out_of_range&) {
+                throw std::runtime_error("Integer out of range in file: " + item);
+            }
+        }
+
+        data.push_back(row);
+    }
+
+    file.close();
+    return data;
+}
 
 // Main with arguments
 int main(int argc, char *argv[])
@@ -626,8 +659,8 @@ int main(int argc, char *argv[])
     if (argc < 4)
     {
         std::cerr << "Usage: " << argv[0] << " <input_file> <algorithm_type> <sn_type>" << std::endl;
-        std::cerr << "Algorithm types: random, nn1, nn2, greedy, kregret, w_kregret, kregret_mod, w_kregret_mod, cmls" << std::endl;
-        std::cerr << "Starting node types: random, each" << std::endl;
+        std::cerr << "Algorithm types: random, nn1, nn2, greedy, kregret, w_kregret, kregret_mod, w_kregret_mod, cmls_intra, cmls_inter" << std::endl;
+        std::cerr << "Starting node types: random, each, file" << std::endl;
         std::cerr << "Example: " << argv[0] << " input.csv random random" << std::endl;
         return 1;
     }
@@ -660,26 +693,32 @@ int main(int argc, char *argv[])
     std::vector<std::vector<int>> solutions(nSolutions);
     std::vector<int> totalCosts(nSolutions);
 
+    std::vector<float> executionTimes(nSolutions);
+
     for (int i = 0; i < nSolutions; i++)
     {
+    // Start the timer
+    clock_t start = clock();
+
         int startNode;
-        if (sn_type == "random")
-            startNode = std::rand() % elements;
-        else if (sn_type == "each")
+        std::vector<int> path;
+
+        if (algorithm_type[algorithm_type.size() - 1] == 'r'){
             startNode = i % elements;
+            path = randomSolution(startNode, distanceMatrix, costLookupTable, k);
+        }
+        else if (algorithm_type[algorithm_type.size() - 1] == 'g') // If the algorithm is cmls
+            path = solutionsFromFile("./solutions" + input_file)[i];
         else
         {
             std::cerr << "Invalid Starting node type!" << std::endl;
             return 1;
         }
 
-        std::vector<int> path;
 
-        path = randomSolution(startNode, distanceMatrix, costLookupTable, k);
-
-        if (algorithm_type == "cmls")
+        if (algorithm_type.substr(0, algorithm_type.size() - 2) == "cmls_intra")
             cmls(path, distanceMatrix, costLookupTable);
-        if (algorithm_type == "cmls_edge")
+        else if (algorithm_type.substr(0, algorithm_type.size() - 2) == "cmls_inter")
             cmls_edge(path, distanceMatrix, costLookupTable);
         else  
             std::cerr << "Invalid algorithm type!" << std::endl;
@@ -691,8 +730,6 @@ int main(int argc, char *argv[])
         }
 
         int totalCost = calculateTotalCost(path, distanceMatrix, costLookupTable);
-
-        std::cout << "Total cost: " << totalCost << std::endl;
 
         // ASSERT CORRECTNESS
         // Assert that the selected nodes are exactly k
@@ -706,9 +743,24 @@ int main(int argc, char *argv[])
 
         // Clean up the path
         path.clear();
+
+    // Stop the timer
+    clock_t end = clock();
+    executionTimes[i] = (float)(end - start) / CLOCKS_PER_SEC;
     }
 
-    dumpToFile(input_file, algorithm_type, solutions, totalCosts, sn_type);
+    // Print min max and average
+    float average = std::accumulate(executionTimes.begin(), executionTimes.end(), 0.0) / static_cast<float>(executionTimes.size());
+    std::cout << "Average execution time: " << average << " s" << std::endl;
+
+    float min = *std::min_element(executionTimes.begin(), executionTimes.end());
+    std::cout << "Min execution time: " << min << " s" << std::endl;
+
+    float max = *std::max_element(executionTimes.begin(), executionTimes.end());
+    std::cout << "Max execution time: " << max << " s" << std::endl;
+
+
+    dumpToFile(input_file, algorithm_type, solutions, totalCosts, average, sn_type);
 
     return 0;
 }
