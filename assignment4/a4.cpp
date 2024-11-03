@@ -11,6 +11,8 @@
 #include <string>
 #include <unordered_set>
 #include <climits>
+#include <unordered_map>
+#include <set>
 
 /*
 ## Problem description
@@ -208,44 +210,92 @@ int safeIndex(int index, int size) {
     return (index % size + size) % size; // Ensures positive index within bounds
 }
 
+std::pair<std::vector<int>, int> findKnearestNeighbors(
+    int current, 
+    int k, 
+    const std::vector<std::vector<int>> &distanceMatrix, 
+    const std::vector<int> &costLookupTable, 
+    const std::vector<int> &solution
+    ){
+    // Find 10 nearest neighbors by looking up the distance matrix, additonally add the cost of the node and sort them
+    std::vector<std::pair<int, float>> nearestNeighbors;
+
+    for (int j = 0; j < distanceMatrix.size(); j++) {
+        if (std::find(solution.begin(), solution.end(), j) != solution.end()) {
+            continue; // Node already in the path
+        }
+
+        nearestNeighbors.push_back(std::make_pair(j, distanceMatrix[current][j] + costLookupTable[j]));
+    }
+
+    // Sort the nearest neighbors
+    std::sort(nearestNeighbors.begin(), nearestNeighbors.end(), [](const std::pair<int, float> &a, const std::pair<int, float> &b) {
+        return a.second < b.second;
+    });
+
+    // Trim the list to k
+    if (nearestNeighbors.size() > k) {
+        nearestNeighbors.resize(k);
+    }
+
+    
+    std::vector<int> nearestNeighborsSimple(k);
+    int furthest = nearestNeighbors.back().first;
+
+    for (int i = 0; i < k; i++) {
+        nearestNeighborsSimple[i] = nearestNeighbors[i].first;
+    }
+
+    return std::make_pair(nearestNeighborsSimple, furthest);
+}
+
+void fillOutMapping(std::unordered_map<int, std::set<int>> &mappingTable, const std::vector<int> &nodeList, const int index) {
+    for (int node : nodeList) {
+        // Check if mappingTable contains the node
+        if (mappingTable.find(node) == mappingTable.end()) {
+            // Create a new entry as a vector with one element (node)
+            mappingTable[node] = std::set<int>{index};
+        }
+        else
+            // Add the node to the vector
+            mappingTable[node].insert(index);
+    }
+}
+
 void cmls(std::vector<int> &solution, const std::vector<std::vector<int>> &distanceMatrix, const std::vector<int> &costLookupTable)
 {
     int solutionSize = solution.size();
-    // std::cout << "Solution size: " << solutionSize << std::endl;
-    // std::cout << "Starting cost: " << calculateTotalCost(solution, distanceMatrix, costLookupTable) << std::endl;
     int lastBestDelta = 0;
     int iteration = 0;
+
+    std::vector<std::vector<int>> memoizationTable(solutionSize);
+    std::vector<int> memoizationTableFurthest(solutionSize);
+    std::unordered_map<int, std::set<int>> mappingTable;
 
     while (true) {
         iteration++;
 
         int bestDelta = -INT32_MAX;
         std::pair<int, int> bestPair;
+        std::pair<int, int> otherTwo;
 
         for (int i = 0; i < solutionSize; i++) {
             int current = solution[i];
 
-            // Find 10 nearest neighbors by looking up the distance matrix, additonally add the cost of the node and sort them
-            std::vector<std::pair<int, float>> nearestNeighbors;
+           
+            if (memoizationTable[i].empty()) {
+                // std::cout<<"Memoization table is empty for node "<<current<<std::endl;
 
-            for (int j = 0; j < distanceMatrix.size(); j++) {
-                if (std::find(solution.begin(), solution.end(), j) != solution.end()) {
-                    continue; // Node already in the path
-                }
-
-                nearestNeighbors.push_back(std::make_pair(j, distanceMatrix[current][j] + costLookupTable[j]));
+                std::pair<std::vector<int>, int> p = findKnearestNeighbors(current, 10, distanceMatrix, costLookupTable, solution);
+                memoizationTable[i] = p.first; 
+                memoizationTableFurthest[i] = p.second;
+                fillOutMapping(mappingTable, memoizationTable[i], i);
             }
-
-            // Sort the nearest neighbors
-            std::sort(nearestNeighbors.begin(), nearestNeighbors.end(), [](const std::pair<int, float> &a, const std::pair<int, float> &b) {
-                return a.second < b.second;
-            });
-
 
             for (int j = 0; j < 10; j++) {
                 for (int k = -1; k <= 1; k+=2) { // k acts as a multiplier to get the next and next next node both ways
 
-                    int candidate = nearestNeighbors[j].first; // Get the candidate node
+                    int candidate = memoizationTable[i][j];
                     
                     // TODO: Both sides
                     int ip1_node = solution[safeIndex(i + k, solutionSize)]; // Current +- 1
@@ -258,6 +308,7 @@ void cmls(std::vector<int> &solution, const std::vector<std::vector<int>> &dista
                     if (delta > bestDelta) {
                         bestDelta = delta;
                         bestPair = std::make_pair(ip1_node, candidate); // Exchange ip1 and c to add proper candidate edge
+                        otherTwo = std::make_pair(current, ip2_node);
                     }
                 }
 
@@ -272,6 +323,44 @@ void cmls(std::vector<int> &solution, const std::vector<std::vector<int>> &dista
         // Insert the candidate edge at ip2
         int swap_location = std::find(solution.begin(), solution.end(), bestPair.first) - solution.begin();
         solution[swap_location] = bestPair.second;
+
+
+        // Now we have to intervene in the mapping table and memoization table
+        int toRemove = bestPair.first;
+        int toAdd = bestPair.second;
+
+
+        // Clear memoized stuff based on mapping table for toAdd i.e., we need to recalculate the nearest neighbors when toAdd was one of them
+        for (int i : mappingTable[toAdd]) {
+            memoizationTable[i].clear();
+            memoizationTableFurthest[i] = 0;
+        }
+
+        // Remove the old node from the mapping table
+        mappingTable.erase(toAdd);
+
+
+        // Update the memoization table by 
+        // 1. Clearing the vector of the old node and triggering a recalculation of the nearest neighbors 
+        memoizationTable[swap_location].clear();
+        memoizationTableFurthest[swap_location] = 0;
+
+        // 2. Calculating the distance of toRemove node to all others, erasing memoization table entries whenever toRemove is closer than the current furthest
+        for (int i = 0; i < solutionSize; i++) {
+            if (memoizationTable[i].empty()) {
+                continue;
+            }
+
+            int current = solution[i];
+            int furthest = memoizationTableFurthest[i];
+
+            int newFurthest = distanceMatrix[current][toRemove] + costLookupTable[toRemove];
+
+            if (newFurthest < furthest) {
+                memoizationTable[i].clear();
+                memoizationTableFurthest[i] = 0;
+            }
+        }
 
 
         // if (iteration % 1 == 0) {
