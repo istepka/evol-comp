@@ -47,7 +47,7 @@ echo "Compiling the C++ source file: $SOURCE_FILE"
 echo "========================================"
 
 # Compile the C++ source file with optimization flags
-g++ -std=c++11 -O2 "$SOURCE_FILE" -o "$EXECUTABLE"
+g++ -std=c++17 -O2 "$SOURCE_FILE" -o "$EXECUTABLE"
 
 echo "Compilation successful. Executable '$EXECUTABLE' created."
 echo "----------------------------------------"
@@ -70,12 +70,12 @@ for CSV in "${CSV_FILES[@]}"; do
     echo "----------------------------------------"
 
     for METHOD in "${METHODS[@]}"; do
-        echo "  Running Method: $METHOD"
+        echo "Running Method: $METHOD"
         
         # Run the executable with the current method
         ./"$EXECUTABLE" "$CSV" "$METHOD"
 
-        echo "    Completed Method: $METHOD"
+        echo "Completed Method: $METHOD"
     done
 
     echo "Completed processing '$CSV'."
