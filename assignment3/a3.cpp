@@ -225,39 +225,65 @@ std::vector<int> generateGreedySolution(int startNode, const std::vector<std::ve
 }
 
 // Function to perform two-nodes exchange within the same route
-bool twoNodesExchange(std::vector<int> &path, int &delta, const std::vector<std::vector<int>> &distanceMatrix, const std::vector<int> &costLookupTable, int i, int j) {
+bool twoNodesExchange(const std::vector<int> &path, int &delta, 
+                      const std::vector<std::vector<int>> &distanceMatrix, 
+                      const int i, const int j) {
     if (i == j)
-        return false;
+        return false; // No swap needed if indices are the same
 
-    int n = path.size() - 1; // excluding the duplicate last node
+    int n = path.size() - 1; // Assuming path[0] == path[n] (cycle)
+
+    // Validate indices
     if (i < 0 || i >= n || j < 0 || j >= n)
         return false;
 
-    // Calculate the change in distance
-    int prev_i = (i - 1 + n) % n;
-    int next_i = (i + 1) % n;
-    int prev_j = (j - 1 + n) % n;
-    int next_j = (j + 1) % n;
+    // Ensure i < j for consistent handling
+    int node1 = i;
+    int node2 = j;
+    if (j < i) std::swap(node1, node2);
 
-    if (next_i == j || next_j == i) { // adjacent nodes
-        // Handle adjacent nodes differently to avoid overlapping
-        int old_dist = distanceMatrix[path[prev_i]][path[i]] + distanceMatrix[path[j]][path[next_j]];
-        int new_dist = distanceMatrix[path[prev_i]][path[j]] + distanceMatrix[path[i]][path[next_j]];
+    // Check if nodes are adjacent
+    bool adjacent = (node1 + 1) % n == node2;
+
+    if (adjacent) {
+        // Handle adjacent nodes
+        int prev_i = (node1 - 1 + n) % n;
+        int next_j = (node2 + 1) % n;
+
+        int old_dist = distanceMatrix[path[prev_i]][path[node1]] +
+                       distanceMatrix[path[node1]][path[node2]] +
+                       distanceMatrix[path[node2]][path[next_j]];
+
+        int new_dist = distanceMatrix[path[prev_i]][path[node2]] +
+                       distanceMatrix[path[node2]][path[node1]] +
+                       distanceMatrix[path[node1]][path[next_j]];
+
         delta = new_dist - old_dist;
     } else {
-        int old_dist = distanceMatrix[path[prev_i]][path[i]] + distanceMatrix[path[i]][path[next_i]] +
-                       distanceMatrix[path[prev_j]][path[j]] + distanceMatrix[path[j]][path[next_j]];
-        int new_dist = distanceMatrix[path[prev_i]][path[j]] + distanceMatrix[path[j]][path[next_i]] +
-                       distanceMatrix[path[prev_j]][path[i]] + distanceMatrix[path[i]][path[next_j]];
+        // Handle non-adjacent nodes
+        int prev_i = (node1 - 1 + n) % n;
+        int next_i = (node1 + 1) % n;
+        int prev_j = (node2 - 1 + n) % n;
+        int next_j = (node2 + 1) % n;
+
+        // If node1 and node2 are not the same and not adjacent
+        int old_dist = distanceMatrix[path[prev_i]][path[node1]] +
+                       distanceMatrix[path[node1]][path[next_i]] +
+                       distanceMatrix[path[prev_j]][path[node2]] +
+                       distanceMatrix[path[node2]][path[next_j]];
+
+        int new_dist = distanceMatrix[path[prev_i]][path[node2]] +
+                       distanceMatrix[path[node2]][path[next_i]] +
+                       distanceMatrix[path[prev_j]][path[node1]] +
+                       distanceMatrix[path[node1]][path[next_j]];
+
         delta = new_dist - old_dist;
     }
 
-    // Since nodes are swapped, node costs remain the same
     return true;
 }
 
-// Function to perform two-edges exchange within the same route (also known as 2-opt)
-bool twoEdgesExchange(std::vector<int> &path, int &delta, const std::vector<std::vector<int>> &distanceMatrix, const std::vector<int> &costLookupTable, int i, int j) {
+bool twoEdgesExchange(std::vector<int> &path, int &delta, const std::vector<std::vector<int>> &distanceMatrix, int i, int j) {
     if (i == j || std::abs(i - j) <= 1)
         return false;
 
@@ -279,14 +305,11 @@ bool twoEdgesExchange(std::vector<int> &path, int &delta, const std::vector<std:
 
     delta = new_dist - old_dist;
 
-    // Reverse the segment between i and j
-    std::reverse(path.begin() + i, path.begin() + j + 1);
-
     return true;
 }
 
 // Function to perform inter-route move: swap a node inside the path with one outside
-bool interRouteSwap(std::vector<int> &path, int &delta, const std::vector<std::vector<int>> &distanceMatrix, const std::vector<int> &costLookupTable, int inIdx, int outNode) {
+bool interRouteExchange(std::vector<int> &path, int &delta, const std::vector<std::vector<int>> &distanceMatrix, const std::vector<int> &costLookupTable, int inIdx, int outNode) {
     int n = path.size() - 1; // excluding the duplicate last node
     if (inIdx < 0 || inIdx >= n)
         return false;
@@ -305,9 +328,6 @@ bool interRouteSwap(std::vector<int> &path, int &delta, const std::vector<std::v
 
     // Calculate delta
     delta = new_dist - old_dist;
-
-    // Update the path
-    path[inIdx] = outNode;
 
     // Update node costs: subtract inNode's cost and add outNode's cost
     delta += (costLookupTable[outNode] - costLookupTable[inNode]);
@@ -328,18 +348,18 @@ bool greedyLocalSearch(std::vector<int> &path, int &currentCost, const std::stri
     int n = path.size() - 1; // excluding the duplicate last node
 
     // Intra-route moves
-    if (intraMoveType == "two_nodes_exchange" || intraMoveType == "both") {
+    if (intraMoveType == "two_nodes" || intraMoveType == "both") {
         for (int i = 0; i < n; i++) {
             for (int j = i + 1; j < n; j++) {
-                allMoves.emplace_back("two_nodes_exchange", i, j);
+                allMoves.push_back(std::make_tuple("two_nodes_exchange", i, j));
             }
         }
     }
 
-    if (intraMoveType == "two_edges_exchange" || intraMoveType == "both") {
+    if (intraMoveType == "two_edges" || intraMoveType == "both") {
         for (int i = 0; i < n - 1; i++) {
             for (int j = i + 2; j < n; j++) {
-                allMoves.emplace_back("two_edges_exchange", i, j);
+                allMoves.push_back(std::make_tuple("two_edges_exchange", i, j));
             }
         }
     }
@@ -350,7 +370,7 @@ bool greedyLocalSearch(std::vector<int> &path, int &currentCost, const std::stri
             if (std::find(path.begin(), path.end() -1, outNode) != path.end() -1)
                 continue; // Node already in the path
 
-            allMoves.emplace_back("inter_route_swap", i, outNode);
+            allMoves.push_back(std::make_tuple("inter_route_swap", i, outNode));
         }
     }
 
@@ -366,16 +386,13 @@ bool greedyLocalSearch(std::vector<int> &path, int &currentCost, const std::stri
         bool valid = false;
 
         if (mType == "two_nodes_exchange") {
-            std::vector<int> tempPath = path;
-            valid = twoNodesExchange(tempPath, delta, distanceMatrix, costLookupTable, mPos1, mPos2);
+            valid = twoNodesExchange(path, delta, distanceMatrix, mPos1, mPos2);
         }
         else if (mType == "two_edges_exchange") {
-            std::vector<int> tempPath = path;
-            valid = twoEdgesExchange(tempPath, delta, distanceMatrix, costLookupTable, mPos1, mPos2);
+            valid = twoEdgesExchange(path, delta, distanceMatrix, mPos1, mPos2);
         }
         else if (mType == "inter_route_swap") {
-            std::vector<int> tempPath = path;
-            valid = interRouteSwap(tempPath, delta, distanceMatrix, costLookupTable, mPos1, mPos2);
+            valid = interRouteExchange(path, delta, distanceMatrix, costLookupTable, mPos1, mPos2);
         }
 
         if (valid && delta < 0) { // Improvement found
@@ -393,6 +410,8 @@ bool greedyLocalSearch(std::vector<int> &path, int &currentCost, const std::stri
             }
 
             currentCost += delta;
+            std::cout << delta << std::endl;
+            std::cout << "currentCost: " << currentCost << std::endl;
             improvement = true;
             break; // Only first improving move is applied
         }
@@ -414,12 +433,12 @@ bool steepestLocalSearch(std::vector<int> &path, int &currentCost, const std::st
     bestDelta = 0;
 
     // Iterate over all possible intra-route moves
-    if (intraMoveType == "two_nodes_exchange" || intraMoveType == "both") {
+    if (intraMoveType == "two_nodes" || intraMoveType == "both") {
         for (int i = 0; i < n; i++) {
             for (int j = i + 1; j < n; j++) {
                 int delta = 0;
                 std::vector<int> tempPath = path;
-                if (twoNodesExchange(tempPath, delta, distanceMatrix, costLookupTable, i, j)) {
+                if (twoNodesExchange(tempPath, delta, distanceMatrix, i, j)) {
                     if (delta < bestDelta) {
                         bestDelta = delta;
                         moveType = "two_nodes_exchange";
@@ -431,12 +450,12 @@ bool steepestLocalSearch(std::vector<int> &path, int &currentCost, const std::st
         }
     }
 
-    if (intraMoveType == "two_edges_exchange" || intraMoveType == "both") {
+    if (intraMoveType == "two_edges" || intraMoveType == "both") {
         for (int i = 0; i < n - 1; i++) {
             for (int j = i + 2; j < n; j++) {
                 int delta = 0;
                 std::vector<int> tempPath = path;
-                if (twoEdgesExchange(tempPath, delta, distanceMatrix, costLookupTable, i, j)) {
+                if (twoEdgesExchange(tempPath, delta, distanceMatrix, i, j)) {
                     if (delta < bestDelta) {
                         bestDelta = delta;
                         moveType = "two_edges_exchange";
@@ -456,7 +475,7 @@ bool steepestLocalSearch(std::vector<int> &path, int &currentCost, const std::st
 
             int delta = 0;
             std::vector<int> tempPath = path;
-            if (interRouteSwap(tempPath, delta, distanceMatrix, costLookupTable, i, outNode)) {
+            if (interRouteExchange(tempPath, delta, distanceMatrix, costLookupTable, i, outNode)) {
                 if (delta < bestDelta) {
                     bestDelta = delta;
                     moveType = "inter_route_swap";
@@ -511,6 +530,7 @@ std::vector<int> runLocalSearch(const std::vector<int> &initialPath, const std::
     }
 
     finalCost = currentCost;
+    std::cout << "Final cost: " << finalCost << std::endl;
     return currentPath;
 }
 
@@ -552,7 +572,7 @@ int main(int argc, char *argv[]) {
     std::string searchType, intraMoveType, startType;
 
     size_t first_underscore = method_type.find('_');
-    size_t second_underscore = method_type.find('_', first_underscore + 1); // ommit it is a part of intraMoveType
+    size_t second_underscore = method_type.find('_', first_underscore + 1);
     size_t third_underscore = method_type.find('_', second_underscore + 1); 
 
     searchType = method_type.substr(0, first_underscore);
