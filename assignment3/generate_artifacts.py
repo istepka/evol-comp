@@ -18,19 +18,6 @@ RESULTS_EXPORT_DIR = Path('exported_results')
 PLOTS_DIR = Path('plots')
 LATEX_TABLE_FILE = 'results_table.tex'
 
-# Define Instances and Methods
-INSTANCES = ['TSPA', 'TSPB']
-METHODS = [
-    "greedy_two_edges_greedy",
-    "greedy_two_edges_random",
-    "greedy_two_nodes_greedy",
-    "greedy_two_nodes_random",
-    "steepest_two_edges_greedy",
-    "steepest_two_edges_random",
-    "steepest_two_nodes_greedy",
-    "steepest_two_nodes_random",
-]
-
 # Configure Matplotlib for serif fonts and even larger font sizes
 plt.rcParams.update({
     # 'text.usetex': True,
@@ -42,8 +29,6 @@ plt.rcParams.update({
     'xtick.labelsize': 20,
     'ytick.labelsize': 20
 })
-
-# Number of nodes to select (50% rounded up)
 
 
 def compute_nodes_to_select(total_nodes: int) -> int:
@@ -57,93 +42,60 @@ def read_node_data(instance: str) -> pd.DataFrame:
     if not file_path.exists():
         raise FileNotFoundError(
             f"Data file for instance {instance} not found at {file_path}")
-    df = pd.read_csv(file_path, header=None, names=['x', 'y', 'cost'], sep=';')
+    df = pd.read_csv(file_path, header=None, names=[
+                     'x', 'y', 'cost'], sep=';')
     logging.info(f"Loaded data for instance {instance} with {len(df)} nodes.")
     return df
 
-# Parse solution file with enhanced handling for float average costs
+# Parse the output.txt file
 
 
-def parse_solution_file(file_path: Path) -> Dict[str, Any]:
-    result = {}
-    try:
-        with open(file_path, 'r') as f:
-            lines = f.readlines()
-
-        for line in lines:
-            line = line.strip()
-            if line.startswith('Average cost:'):
-                # Handle float average cost
-                try:
-                    parts = line.split(':')[1].split(';')
-                    average_cost_str = parts[0].strip()
-                    result['average_cost'] = float(average_cost_str)
-                    logging.debug(
-                        f"Parsed average_cost: {result['average_cost']} from {file_path}")
-                except (IndexError, ValueError) as e:
-                    logging.error(
-                        f"Error parsing average_cost in {file_path}: {e}")
-                    result['average_cost'] = None
-
-            elif line.startswith('Worst cost:'):
-                # Handle float worst cost and list of node indices
-                try:
-                    parts = line.split(';')
-                    worst_cost_str = parts[0].split(':')[1].strip()
-                    # Using float to accommodate potential floats
-                    result['worst_cost'] = float(worst_cost_str)
-                    worst_solution_str = parts[1].strip()
-                    result['worst_solution'] = [
-                        int(idx) for idx in worst_solution_str.split()]
-                    logging.debug(
-                        f"Parsed worst_cost: {result['worst_cost']} and worst_solution: {result['worst_solution']} from {file_path}")
-                except (IndexError, ValueError) as e:
-                    logging.error(
-                        f"Error parsing worst_cost or worst_solution in {file_path}: {e}")
-                    result['worst_cost'] = None
-                    result['worst_solution'] = []
-
-            elif line.startswith('Best cost:'):
-                # Handle float best cost and list of node indices
-                try:
-                    parts = line.split(';')
-                    best_cost_str = parts[0].split(':')[1].strip()
-                    # Using float to accommodate potential floats
-                    result['best_cost'] = float(best_cost_str)
-                    best_solution_str = parts[1].strip()
-                    result['best_solution'] = [
-                        int(idx) for idx in best_solution_str.split()]
-                    logging.debug(
-                        f"Parsed best_cost: {result['best_cost']} and best_solution: {result['best_solution']} from {file_path}")
-                except (IndexError, ValueError) as e:
-                    logging.error(
-                        f"Error parsing best_cost or best_solution in {file_path}: {e}")
-                    result['best_cost'] = None
-                    result['best_solution'] = []
-
-    except Exception as e:
-        logging.error(f"Failed to parse solution file {file_path}: {e}")
-
-    return result
-
-# Collect all results
-
-
-def collect_results(instances: List[str], methods: List[str]) -> Dict[str, Dict[str, Dict[str, Any]]]:
-    all_results = {instance: {method: {} for method in methods}
-                   for instance in instances}
-
-    for method in methods:
-        for instance in instances:
-            file_name = f'{method}_{instance}.csv.solution'
-            file_path = RESULTS_DIR / file_name
-            if file_path.exists():
-                parsed = parse_solution_file(file_path)
-                all_results[instance][method] = parsed
-                logging.info(
-                    f"Parsed results for method '{method}' on instance '{instance}'.")
-            else:
-                logging.warning(f"Solution file {file_path} does not exist.")
+def parse_output_file(file_path: Path) -> Dict[str, Dict[str, Dict[str, Any]]]:
+    all_results = {}
+    with open(file_path, 'r') as f:
+        lines = f.readlines()
+    current_method = None
+    current_instance = None
+    result_dict = {}
+    for line in lines:
+        line = line.strip()
+        if line.startswith('Name:'):
+            if result_dict and current_method and current_instance:
+                # Store the previous result_dict
+                if current_instance not in all_results:
+                    all_results[current_instance] = {}
+                all_results[current_instance][current_method] = result_dict
+                result_dict = {}
+            current_method = line[len('Name:'):].strip()
+        elif line.startswith('Problem:'):
+            current_instance = line[len('Problem:'):].strip()
+        elif line.startswith('Best cost:'):
+            result_dict['best_cost'] = float(
+                line[len('Best cost:'):].strip())
+        elif line.startswith('Worst cost:'):
+            result_dict['worst_cost'] = float(
+                line[len('Worst cost:'):].strip())
+        elif line.startswith('Average cost:'):
+            result_dict['average_cost'] = float(
+                line[len('Average cost:'):].strip())
+        elif line.startswith('Best time:'):
+            result_dict['best_time'] = float(
+                line[len('Best time:'):].strip())
+        elif line.startswith('Worst time:'):
+            result_dict['worst_time'] = float(
+                line[len('Worst time:'):].strip())
+        elif line.startswith('Average time:'):
+            result_dict['average_time'] = float(
+                line[len('Average time:'):].strip())
+        elif line.startswith('Best solution:'):
+            solution_str = line[len('Best solution:'):].strip()
+            result_dict['best_solution'] = [
+                int(s) for s in solution_str.split()]
+    # After the last block
+    if result_dict and current_method and current_instance:
+        if current_instance not in all_results:
+            all_results[current_instance] = {}
+        all_results[current_instance][current_method] = result_dict
     return all_results
 
 # Generate LaTeX tables
@@ -266,7 +218,7 @@ def visualize_solution(instance: str, method: str, solution: List[int], node_dat
         plt.plot(selected_nodes['x'], selected_nodes['y'],
                  'r-', linewidth=1.5, label='Hamiltonian Cycle')
 
-        plt.title(f'Best Solution for {method.capitalize()} on {instance}')
+        plt.title(f'Best Solution for {method} on {instance}')
         plt.xlabel('X Coordinate')
         plt.ylabel('Y Coordinate')
         plt.xticks([0, 1000, 2000, 3000, 4000])
@@ -298,7 +250,7 @@ def visualize_solution(instance: str, method: str, solution: List[int], node_dat
         plt.close()
         return None
 
-# New Function: Export Best Solution to CSV
+# Export Best Solution to CSV
 
 
 def export_best_solution_to_csv(instance: str, method: str, solution: List[int], node_data: pd.DataFrame, output_dir: Path) -> Optional[Path]:
@@ -366,7 +318,21 @@ def export_best_solution_to_csv(instance: str, method: str, solution: List[int],
 
 
 def main():
-    # Step 1: Read node data
+    # Step 1: Parse output.txt and collect all results
+    output_file = Path('output.txt')
+    if not output_file.exists():
+        logging.error(f"Output file {output_file} does not exist.")
+        return
+    all_results = parse_output_file(output_file)
+
+    # Get list of instances and methods
+    INSTANCES = list(all_results.keys())
+    METHODS = set()
+    for instance in all_results:
+        METHODS.update(all_results[instance].keys())
+    METHODS = list(METHODS)
+
+    # Step 2: Read node data
     node_data_dict = {}
     for instance in INSTANCES:
         try:
@@ -375,9 +341,6 @@ def main():
         except FileNotFoundError as e:
             logging.error(e)
             return
-
-    # Step 2: Collect all results
-    all_results = collect_results(INSTANCES, METHODS)
 
     # Step 3: Generate LaTeX tables
     generate_latex_tables(all_results.copy(), INSTANCES,
@@ -389,7 +352,7 @@ def main():
     RESULTS_EXPORT_DIR.mkdir(parents=True, exist_ok=True)
     for instance in INSTANCES:
         for method in METHODS:
-            res = all_results[instance][method]
+            res = all_results[instance].get(method, {})
             if res and 'best_solution' in res and res['best_solution']:
                 best_solution = res['best_solution']
                 node_data = node_data_dict[instance]

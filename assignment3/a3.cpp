@@ -1,658 +1,772 @@
-#include <iostream>
+#include <vector>
+#include <string>
 #include <fstream>
 #include <sstream>
-#include <vector>
-#include <tuple>
+#include <iostream>
 #include <cmath>
+#include <ctime>
 #include <cstdlib>
+#include <list>
+#include <memory>
+#include <map>
+#include <coroutine>
 #include <algorithm>
-#include <numeric>
-#include <cassert>
-#include <string>
-#include <unordered_set>
-#include <climits>
 #include <random>
-#include <chrono>
-#include <iomanip>
+#include <cassert>
 
-// Struct to hold node data
-struct Node {
-    int x;
-    int y;
-    int cost;
+using namespace std;
+
+
+auto rng = std::default_random_engine(869468469);
+
+struct Result{
+    int bestCost;
+    int worstCost;
+    int averageCost;
+    vector<int> bestSolution;
+    vector<int> worstSolution;
+
+    Result(int bc, int wc, int ac, vector<int> bs, vector<int> ws)
+        : bestCost(bc), worstCost(wc), averageCost(ac), bestSolution(bs), worstSolution(ws) {}
 };
 
-// Function to read the CSV file and store data in a vector of Nodes
-std::vector<Node> readCSV(const std::string &filename) {
-    std::ifstream file(filename);
-    std::vector<Node> data;
-
-    if (!file.is_open()) {
-        std::cerr << "Error opening file: " << filename << std::endl;
-        return data; // Return an empty vector if the file can't be opened
-    }
-
-    std::string line;
-    while (std::getline(file, line)) {
-        std::stringstream ss(line);
-        std::string item;
-        std::vector<int> row;
-
-        // Split the line by ';' and convert to integers
-        while (std::getline(ss, item, ';')) {
-            row.push_back(std::stoi(item));
+int calculate_cost(vector<int> solution, vector<vector<int>> distances, vector<int> costs){
+        int cost = 0;
+        for(int j=0; j<solution.size()-1; j++){
+            cost += distances[solution[j]][solution[j+1]];
+            cost+=costs[solution[j]];
         }
+        cost+=distances[solution[solution.size()-1]][solution[0]];
+        return cost;
+    }
 
-        // Ensure there are exactly 3 elements in the row
-        if (row.size() == 3) {
-            Node node = {row[0], row[1], row[2]};
-            data.push_back(node);
+
+class Algo {
+public:
+    vector<vector<int>> distances;
+    vector<int> costs;
+    int starting_node;
+    string name;
+    Algo(vector<vector<int>> distances, vector<int> costs, int i, string name)
+        : distances(distances), costs(costs), starting_node(i), name(name) {}
+    virtual Result solve() =0;
+    int calculate_cost(vector<int> solution, vector<vector<int>> distances, vector<int> costs){
+        int cost = 0;
+        for(int j=0; j<solution.size()-1; j++){
+            cost += distances[solution[j]][solution[j+1]];
+            cost+=costs[solution[j]];
         }
+        cost+=distances[solution[solution.size()-1]][solution[0]];
+        return cost;
     }
-
-    file.close();
-    return data;
-}
-
-// Function to calculate the Euclidean distance matrix
-std::vector<std::vector<int>> getDistanceMatrix(const std::vector<Node> &data) {
-    int n = data.size();
-    std::vector<std::vector<int>> distanceMatrix(n, std::vector<int>(n, 0));
-
-    for (int i = 0; i < n; i++) {
-        int x1 = data[i].x;
-        int y1 = data[i].y;
-        for (int j = i + 1; j < n; j++) {
-            int x2 = data[j].x;
-            int y2 = data[j].y;
-
-            int dx = x2 - x1;
-            int dy = y2 - y1;
-
-            // Calculate the Euclidean distance
-            double dist = std::sqrt(dx * dx + dy * dy);
-            // Round the distance to the nearest integer
-            int roundedDist = static_cast<int>(std::round(dist));
-
-            distanceMatrix[i][j] = roundedDist;
-            distanceMatrix[j][i] = roundedDist;
-        }
+    string get_name(){
+        return this->name;
     }
+};
 
-    return distanceMatrix;
-}
+class RandomSearch : public Algo {
+public:
+    RandomSearch(vector<vector<int>> distances, vector<int> costs, int i)
+        : Algo(distances, costs, i, "RandomSearch") {}
+    
+    Result solve() {
+        vector<int> worstSolution;
+        int solution_size = this->distances.size()/2;
+        vector<int> current_solution = vector<int>(solution_size);
+        vector<int> visited(this->distances.size());
 
-// Function to calculate the total cost of a path (distances + cost of nodes)
-int calculateTotalCost(const std::vector<int> &path, const std::vector<std::vector<int>> &distanceMatrix, const std::vector<int> &costLookupTable) {
-    int totalCost = 0;
-    int pathSize = path.size();
-
-    // Sum distances between consecutive nodes
-    for (int i = 0; i < pathSize - 1; i++) {
-        totalCost += distanceMatrix[path[i]][path[i + 1]];
-    }
-
-    // Sum node costs (excluding duplicate nodes if any)
-    std::unordered_set<int> uniqueNodes(path.begin(), path.end() - 1);
-    for (int node : uniqueNodes) {
-        totalCost += costLookupTable[node];
-    }
-
-    return totalCost;
-}
-
-// Function to dump results to a file
-bool dumpToFile(const std::string &input_file,
-                const std::string &method_type,
-                const std::vector<std::vector<int>> &solutions,
-                const std::vector<int> &totalCosts) {
-    // Get average, worst, best of the total costs
-    float average = std::accumulate(totalCosts.begin(), totalCosts.end(), 0.0f) / static_cast<float>(totalCosts.size());
-
-    int worst_index = std::distance(totalCosts.begin(), std::max_element(totalCosts.begin(), totalCosts.end()));
-    int worst_cost = totalCosts[worst_index];
-    std::vector<int> worst_path = solutions[worst_index];
-
-    int best_index = std::distance(totalCosts.begin(), std::min_element(totalCosts.begin(), totalCosts.end()));
-    int best_cost = totalCosts[best_index];
-    std::vector<int> best_path = solutions[best_index];
-
-    std::cout << "Average cost: " << average << std::endl;
-    std::cout << "Worst cost: " << worst_cost << std::endl;
-    std::cout << "Best cost: " << best_cost << std::endl;
-
-    // Create results directory if it doesn't exist
-    std::string dir = "./results";
-    std::string command = "mkdir -p " + dir;
-    system(command.c_str());
-
-    // Prepare filename
-    std::string filename = "./results/" + method_type + "_" + input_file + ".solution";
-    std::ofstream file(filename.c_str());
-
-    if (!file.is_open()) {
-        std::cerr << "Error opening file for writing: " << filename << std::endl;
-        return false;
-    }
-
-    file << "Average cost: " << average << std::endl;
-
-    file << "Worst cost: " << worst_cost << " ; ";
-    for (size_t i = 0; i < worst_path.size(); i++) {
-        file << worst_path[i] << " ";
-    }
-    file << std::endl;
-
-    file << "Best cost: " << best_cost << " ; ";
-    for (size_t i = 0; i < best_path.size(); i++) {
-        file << best_path[i] << " ";
-    }
-    file << std::endl;
-
-    file.flush();
-    file.close();
-
-    return true;
-}
-
-// Function to generate a random starting solution
-std::vector<int> generateRandomSolution(const std::vector<std::vector<int>> &distanceMatrix, const std::vector<int> &costLookupTable, int k, std::mt19937 &rng) {
-    int n = distanceMatrix.size();
-    std::vector<int> nodes(n);
-    for (int i = 0; i < n; i++)
-        nodes[i] = i;
-
-    std::shuffle(nodes.begin(), nodes.end(), rng);
-
-    // Select exactly k nodes
-    std::vector<int> selectedNodes(nodes.begin(), nodes.begin() + k);
-    selectedNodes.push_back(selectedNodes[0]); // Close the cycle
-
-    return selectedNodes;
-}
-
-// Function to generate a greedy starting solution using a greedy cycle heuristic
-std::vector<int> generateGreedySolution(int startNode, const std::vector<std::vector<int>> &distanceMatrix, const std::vector<int> &costLookupTable, int k) {
-    int n = distanceMatrix.size();
-    std::vector<int> path;
-    std::vector<bool> visited(n, false);
-
-    // Start from the startNode
-    path.push_back(startNode);
-    path.push_back(startNode);
-    visited[startNode] = true;
-
-    while (path.size() < static_cast<size_t>(k + 1)) {
-        // Go over all unvisited nodes and find the one that minimizes the increase in the objective function
-        int smallestIncrease = INT_MAX;
-        int bestNode = -1;
-        int bestPosition = -1;
-        for (int i = 0; i < n; i++) {
-            // If node i is in the path then skip
-            if (visited[i] == true)
+        for(int j=0; j<solution_size; j++){
+            if (j==0){
+                current_solution[j] = this->starting_node;
+                visited[this->starting_node] = true;
                 continue;
-
-            for (int j = 0; j < static_cast<int>(path.size()) - 1; j++) {
-                // Check what happens if we insert here
-                int left = path[j];
-                int right = path[j + 1];
-                int increase = distanceMatrix[left][i] + distanceMatrix[i][right] - distanceMatrix[left][right];
-
-                // Add node cost
-                increase += costLookupTable[i];
-
-                if (increase < smallestIncrease) {
-                    smallestIncrease = increase;
-                    bestNode = i;
-                    bestPosition = j + 1; // +1 because we insert between current j and j + 1
-                }
             }
-        }
-
-        if (bestNode != -1) {
-            path.insert(path.begin() + bestPosition, bestNode);
-            visited[bestNode] = true;
-        } else {
-            break; // No more nodes to add
-        }
+            int next = rand() % this->distances.size();
+            while(visited[next])next = rand() % this->distances.size();
+            current_solution[j] = next;
+            visited[next]=true;
+        }        
+        return Result(0, 0, 0, current_solution, worstSolution);
     }
+};
 
-    // Close the cycle
-    if (!path.empty())
-        path.back() = path[0];
+class GreedyCycle: public Algo {
+public:
+    GreedyCycle(vector<vector<int>> distances, vector<int> costs, int i)
+        : Algo(distances, costs, i, "GreedyCycle") {}
 
-    return path;
-}
+    Result solve() {
+        vector<int> worstSolution;
+        int solution_size = this->distances.size()/2;
+        vector<int> current_solution;
+        vector<bool> visited(this->costs.size());
+        current_solution.push_back(this->starting_node);
+        visited[this->starting_node] = true;
 
-// Function to perform two-nodes exchange within the same route
-bool twoNodesExchange(const std::vector<int> &path, int &delta, 
-                      const std::vector<std::vector<int>> &distanceMatrix, 
-                      const int i, const int j) {
-    if (i == j)
-        return false; // No swap needed if indices are the same
+        while(current_solution.size() < solution_size){
+            int smallest_increase = INT32_MAX;
+            int insert_index = -1;
+            int insert_node = -1;
 
-    int n = path.size() - 1; // Assuming path[0] == path[n] (cycle)
 
-    // Validate indices
-    if (i < 0 || i >= n || j < 0 || j >= n)
-        return false;
-
-    // Ensure i < j for consistent handling
-    int node1 = i;
-    int node2 = j;
-    if (j < i) std::swap(node1, node2);
-
-    // Check if nodes are adjacent
-    bool adjacent = (node1 + 1) % n == node2;
-
-    if (adjacent) {
-        // Handle adjacent nodes
-        int prev_i = (node1 - 1 + n) % n;
-        int next_j = (node2 + 1) % n;
-
-        int old_dist = distanceMatrix[path[prev_i]][path[node1]] +
-                       distanceMatrix[path[node1]][path[node2]] +
-                       distanceMatrix[path[node2]][path[next_j]];
-
-        int new_dist = distanceMatrix[path[prev_i]][path[node2]] +
-                       distanceMatrix[path[node2]][path[node1]] +
-                       distanceMatrix[path[node1]][path[next_j]];
-
-        delta = new_dist - old_dist;
-    } else {
-        // Handle non-adjacent nodes
-        int prev_i = (node1 - 1 + n) % n;
-        int next_i = (node1 + 1) % n;
-        int prev_j = (node2 - 1 + n) % n;
-        int next_j = (node2 + 1) % n;
-
-        // If node1 and node2 are not the same and not adjacent
-        int old_dist = distanceMatrix[path[prev_i]][path[node1]] +
-                       distanceMatrix[path[node1]][path[next_i]] +
-                       distanceMatrix[path[prev_j]][path[node2]] +
-                       distanceMatrix[path[node2]][path[next_j]];
-
-        int new_dist = distanceMatrix[path[prev_i]][path[node2]] +
-                       distanceMatrix[path[node2]][path[next_i]] +
-                       distanceMatrix[path[prev_j]][path[node1]] +
-                       distanceMatrix[path[node1]][path[next_j]];
-
-        delta = new_dist - old_dist;
-    }
-
-    return true;
-}
-
-bool twoEdgesExchange(std::vector<int> &path, int &delta, const std::vector<std::vector<int>> &distanceMatrix, int i, int j) {
-    if (i == j || std::abs(i - j) <= 1)
-        return false;
-
-    int n = path.size() - 1; // excluding the duplicate last node
-
-    if (i < 0 || i >= n || j < 0 || j >= n)
-        return false;
-
-    // Ensure i < j
-    if (i > j)
-        std::swap(i, j);
-
-    // Calculate the change in distance
-    int prev_i = (i - 1 + n) % n;
-    int next_j = (j + 1) % n;
-
-    int old_dist = distanceMatrix[path[prev_i]][path[i]] + distanceMatrix[path[j]][path[next_j]];
-    int new_dist = distanceMatrix[path[prev_i]][path[j]] + distanceMatrix[path[i]][path[next_j]];
-
-    delta = new_dist - old_dist;
-
-    return true;
-}
-
-// Function to perform inter-route move: swap a node inside the path with one outside
-bool interRouteExchange(std::vector<int> &path, int &delta, const std::vector<std::vector<int>> &distanceMatrix, const std::vector<int> &costLookupTable, int inIdx, int outNode) {
-    int n = path.size() - 1; // excluding the duplicate last node
-    if (inIdx < 0 || inIdx >= n)
-        return false;
-
-    int inNode = path[inIdx];
-
-    // Find positions around the inNode
-    int prev = (inIdx - 1 + n) % n;
-    int next = (inIdx + 1) % n;
-
-    // Calculate old distances
-    int old_dist = distanceMatrix[path[prev]][inNode] + distanceMatrix[inNode][path[next]];
-
-    // Calculate new distances after swap
-    int new_dist = distanceMatrix[path[prev]][outNode] + distanceMatrix[outNode][path[next]];
-
-    // Calculate delta
-    delta = new_dist - old_dist;
-
-    // Update node costs: subtract inNode's cost and add outNode's cost
-    delta += (costLookupTable[outNode] - costLookupTable[inNode]);
-
-    return true;
-}
-
-// Function to perform greedy local search
-bool greedyLocalSearch(std::vector<int> &path, int &currentCost, const std::string &intraMoveType, const std::vector<std::vector<int>> &distanceMatrix, const std::vector<int> &costLookupTable, std::mt19937 &rng) {
-    bool improvement = false;
-    int bestDelta = 0;
-    std::string moveType = "";
-    int pos1 = -1, pos2 = -1;
-
-    // Generate a list of all possible moves
-    std::vector<std::tuple<std::string, int, int>> allMoves;
-
-    int n = path.size() - 1; // excluding the duplicate last node
-
-    // Intra-route moves
-    if (intraMoveType == "two_nodes" || intraMoveType == "both") {
-        for (int i = 0; i < n; i++) {
-            for (int j = i + 1; j < n; j++) {
-                allMoves.push_back(std::make_tuple("two_nodes_exchange", i, j));
-            }
-        }
-    }
-
-    // if (intraMoveType == "two_edges" || intraMoveType == "both") {
-    //     for (int i = 0; i < n - 1; i++) {
-    //         for (int j = i + 2; j < n; j++) {
-    //             allMoves.push_back(std::make_tuple("two_edges_exchange", i, j));
-    //         }
-    //     }
-    // }
-
-    // // Inter-route moves: swap a node in the path with a node not in the path
-    // for (int i = 0; i < n; i++) {
-    //     for (int outNode = 0; outNode < distanceMatrix.size(); outNode++) {
-    //         if (std::find(path.begin(), path.end() -1, outNode) != path.end() -1)
-    //             continue; // Node already in the path
-
-    //         allMoves.push_back(std::make_tuple("inter_route_swap", i, outNode));
-    //     }
-    // }
-
-    // Shuffle the moves to randomize the order
-    std::shuffle(allMoves.begin(), allMoves.end(), rng);
-
-    // Iterate through the moves and apply the first improving move
-    for (const auto &move : allMoves) {
-        std::string mType = std::get<0>(move);
-        int mPos1 = std::get<1>(move);
-        int mPos2 = std::get<2>(move);
-        int delta = 0;
-        bool valid = false;
-
-        if (mType == "two_nodes_exchange") {
-            valid = twoNodesExchange(path, delta, distanceMatrix, mPos1, mPos2);
-        }
-        // else if (mType == "two_edges_exchange") {
-        //     valid = twoEdgesExchange(path, delta, distanceMatrix, mPos1, mPos2);
-        // }
-        // else if (mType == "inter_route_swap") {
-        //     valid = interRouteExchange(path, delta, distanceMatrix, costLookupTable, mPos1, mPos2);
-        // }
-
-        if (valid && delta < 0) { // Improvement found
-            // Apply the move
-            if (mType == "two_nodes_exchange") {
-                std::swap(path[mPos1], path[mPos2]);
-            }
-            else if (mType == "two_edges_exchange") {
-                std::reverse(path.begin() + mPos1 + 1, path.begin() + mPos2 + 1);
-            }
-            else if (mType == "inter_route_swap") {
-                int inNode = path[mPos1];
-                int outNode = mPos2;
-                path[mPos1] = outNode;
-            }
-
-            currentCost += delta;
-            std::cout << delta << std::endl;
-            std::cout << "currentCost: " << currentCost << std::endl;
-            improvement = true;
-            break; // Only first improving move is applied
-        }
-    }
-
-    return improvement;
-}
-
-// Function to perform steepest local search
-bool steepestLocalSearch(std::vector<int> &path, int &currentCost, const std::string &intraMoveType, const std::vector<std::vector<int>> &distanceMatrix, const std::vector<int> &costLookupTable) {
-    bool improvement = false;
-    int bestDelta = 0;
-    std::string moveType = "";
-    int pos1 = -1, pos2 = -1;
-
-    int n = path.size() - 1; // excluding the duplicate last node
-
-    // Initialize best delta as no improvement
-    bestDelta = 0;
-
-    // Iterate over all possible intra-route moves
-    if (intraMoveType == "two_nodes" || intraMoveType == "both") {
-        for (int i = 0; i < n; i++) {
-            for (int j = i + 1; j < n; j++) {
-                int delta = 0;
-                if (twoNodesExchange(path, delta, distanceMatrix, i, j)) {
-                    if (delta < bestDelta) {
-                        bestDelta = delta;
-                        moveType = "two_nodes_exchange";
-                        pos1 = i;
-                        pos2 = j;
+            for(int j=0; j<current_solution.size(); j++){  // Dla każdego nodea z cyklu
+                int min_distance = INT32_MAX;
+                int min_index = -1;
+                for(int k=0; k<this->distances.size(); k++){ //znajdź najbliższy nieodwiedzony node
+                    if(visited[k]) continue;
+                    int curr = -this->distances[current_solution[j == 0 ? current_solution.size() - 1 : j - 1]][current_solution[j]] + this->distances[current_solution[j == 0 ? current_solution.size() - 1 : j - 1]][k] + this->distances[k][current_solution[j]] + this->costs[k];
+                    if(curr < min_distance){
+                        min_distance = curr;
+                        min_index = k;
                     }
                 }
+                if(min_distance < smallest_increase){
+                    smallest_increase = min_distance;
+                    insert_index = j;
+                    insert_node = min_index;
+                }
+            } // koniec
+            current_solution.insert(current_solution.begin() + insert_index, insert_node);
+            visited[insert_node] = true; 
+        }
+        return Result(0, 0, 0, current_solution, worstSolution);
+    }
+};
+
+
+class Greedy2RegretWieghted: public Algo {
+public:
+    Greedy2RegretWieghted(vector<vector<int>> distances, vector<int> costs, int i)
+        : Algo(distances, costs, i, "Greedy2RegretWieghted") {}
+
+    Result solve() {
+        vector<int> worstSolution;
+        int solution_size = distances.size()/2;
+        vector<int> current_solution;
+        current_solution.push_back(this->starting_node);
+        vector<bool> visited(this->costs.size());
+        visited[this->starting_node] = true;
+
+        while(current_solution.size() < solution_size){
+            
+            int smallest_increase = INT32_MAX;
+            int insert_index = -1;
+            int insert_node = -1;
+            int max_score = -INT32_MAX;
+
+
+            for(int k=0; k<this->distances.size(); k++){ // dla wszystkich nieodwiedzonych nodeów
+                if(visited[k]) continue;
+                vector<int> insertion_cost_for_j;
+                for(int j=0; j<current_solution.size(); j++){ // dla każdego nodea z cyklu
+                    int curr = -this->distances[current_solution[j == 0 ? current_solution.size() - 1 : j - 1]][current_solution[j]] + this->distances[current_solution[j == 0 ? current_solution.size() - 1 : j - 1]][k] + this->distances[k][current_solution[j]] + this->costs[k];
+                    insertion_cost_for_j.push_back(curr);
+                }
+                int smallest_index = -1;
+                int smallest_value = INT32_MAX;
+                int second_smallest_value = INT32_MAX;
+
+                for (int h = 0; h < insertion_cost_for_j.size(); h++) {
+                    if (insertion_cost_for_j[h] < smallest_value) {
+                        second_smallest_value = smallest_value;
+                        smallest_value = insertion_cost_for_j[h];
+                        smallest_index = h;
+                    } else if (insertion_cost_for_j[h] < second_smallest_value) {
+                        second_smallest_value = insertion_cost_for_j[h];
+                    }
+                }
+                int regret = second_smallest_value - smallest_value;
+                int left_node_idx = smallest_index == 0 ? current_solution.size() -1 : smallest_index -1;
+                int insertion_cost = - this->distances[current_solution[left_node_idx]][current_solution[smallest_index]] + this->distances[current_solution[left_node_idx]][k] + this->distances[k][current_solution[smallest_index]] + this->costs[k];
+                int score = regret - insertion_cost;
+                if(score> max_score){
+                    max_score = score;
+                    insert_index = smallest_index;
+                    insert_node = k;
+                }
+            }
+
+            current_solution.insert(current_solution.begin() + insert_index, insert_node);
+            visited[insert_node] = true; 
+        }
+
+        return Result(0, 0, 0, current_solution, worstSolution);
+    }
+};
+
+
+template <typename T>
+struct generator {
+    struct promise_type;
+    using handle_type = std::coroutine_handle<promise_type>;
+    
+    struct promise_type {
+        T value;
+        std::suspend_always initial_suspend() { return {}; }
+        std::suspend_always final_suspend() noexcept { return {}; }
+        generator get_return_object() { return generator{handle_type::from_promise(*this)}; }
+        void unhandled_exception() { std::terminate(); }
+        std::suspend_always yield_value(T val) {
+            value = val;
+            return {};
+        }
+    };
+
+    bool move_next() { return coro ? (coro.resume(), !coro.done()) : false; }
+    T current_value() { return coro.promise().value; }
+
+    generator(generator const&) = delete;
+    generator(generator&& other) : coro(other.coro) { other.coro = {}; }
+    ~generator() { if (coro) coro.destroy(); }
+
+private:
+    generator(handle_type h) : coro(h) {}
+    handle_type coro;
+};
+
+
+class Greedy2Regret: public Algo {
+public:
+    Greedy2Regret(vector<vector<int>> distances, vector<int> costs, int i) 
+        : Algo(distances, costs, i, "Greedy2Regret"){}
+
+    void write_vector_to_file(vector<int> sol){
+        string filename = "animation_greedy/" + to_string(sol.size()) + ".csv";
+        ofstream file;
+        file.open(filename);
+        for(int i=0; i<sol.size(); i++){
+            file << sol[i] << endl;
+        }
+        file.close();
+    }
+    Result solve() {
+        vector<int> worstSolution;
+        int solution_size = distances.size()/2;
+        vector<int> current_solution;
+        current_solution.push_back(starting_node);
+        vector<bool> visited(costs.size());
+        visited[starting_node] = true;
+
+        while(current_solution.size() < solution_size){
+            
+            int smallest_increase = INT32_MAX;
+            int insert_index = -1;
+            int insert_node = -1;
+            int max_regret = -1;
+
+            for(int k=0; k<distances.size(); k++){ // dla wszystkich nieodwiedzonych nodeów
+                if(visited[k]) continue;
+                vector<int> insertion_cost_for_j;
+                for(int j=0; j<current_solution.size(); j++){ // dla każdego nodea z cyklu
+                    int curr = -distances[current_solution[j == 0 ? current_solution.size() - 1 : j - 1]][current_solution[j]] + distances[current_solution[j == 0 ? current_solution.size() - 1 : j - 1]][k] + distances[k][current_solution[j]] + costs[k];
+                    insertion_cost_for_j.push_back(curr);
+                }
+                int smallest_index = -1;
+                int smallest_value = INT32_MAX;
+                int second_smallest_value = INT32_MAX;
+
+                for (int h = 0; h < insertion_cost_for_j.size(); h++) {
+                    if (insertion_cost_for_j[h] < smallest_value) {
+                        second_smallest_value = smallest_value;
+                        smallest_value = insertion_cost_for_j[h];
+                        smallest_index = h;
+                    } else if (insertion_cost_for_j[h] < second_smallest_value) {
+                        second_smallest_value = insertion_cost_for_j[h];
+                    }
+                }
+                int regret = second_smallest_value - smallest_value;
+                if(regret > max_regret){
+                    max_regret = regret;
+                    insert_index = smallest_index;
+                    insert_node = k;
+                }
+            }
+            current_solution.insert(current_solution.begin() + insert_index, insert_node);
+            visited[insert_node] = true; 
+            }
+        
+        return Result(0, 0, 0, current_solution, worstSolution);
+    }
+};
+
+
+class NearestNeighboursSearch: public Algo {
+public:
+    NearestNeighboursSearch(vector<vector<int>> distances, vector<int> costs, int i)
+        : Algo(distances, costs, i, "NearestNeighbours") {}
+    
+    Result solve() {
+        vector<int> worstSolution;
+        int solution_size = distances.size()/2;
+        vector<int> current_solution;
+        current_solution.push_back(starting_node);
+        vector<bool> visited(costs.size());
+        visited[starting_node] = true;
+        while(current_solution.size() < solution_size){
+            int min_cost = INT32_MAX;
+            int min_index = -1;
+            for(int j=0; j<distances.size(); j++){
+                if(visited[j]) continue;
+                if(distances[current_solution[current_solution.size()-1]][j] + costs[j] < min_cost){
+                    min_cost = distances[current_solution[current_solution.size()-1]][j] + costs[j];
+                    min_index = j;
+                }
+            }
+            visited[min_index] = true;
+            current_solution.push_back(min_index);
+        }    
+        return Result(0, 0, 0, current_solution, worstSolution);
+    }
+};
+
+enum SearchType { greedy, steepest };
+enum InitialSolutionType {randomAlg, GC, G2Rw, NN, G2R};
+enum NeighbourhoodType {intra, inter};
+enum InterNeighbourhoodType {twoNode, twoEdges};
+enum ProblemInstance {TSPA, TSPB};
+
+std::map<SearchType, std::string> SearchTypeStrings = {
+    {greedy, "greedy"},
+    {steepest, "steepest"}
+};
+
+std::map<InitialSolutionType, std::string> InitialSolutionTypeStrings = {
+    {randomAlg, "random"},
+    {GC, "GreedyCycle"},
+    {G2Rw, "Greedy2RegretWeighted"},
+    {NN, "NearestNeighbours"},
+    {G2R, "Greedy2Regret"}
+};
+
+std::map<NeighbourhoodType, std::string> NeighbourhoodTypeStrings = {
+    {intra, "intra"},
+    {inter, "inter"}
+};
+
+std::map<InterNeighbourhoodType, std::string> InterNeighbourhoodTypeStrings = {
+    {twoNode, "twoNode"},
+    {twoEdges, "twoEdges"}
+};
+
+std::map<ProblemInstance, std::string> ProblemInstanceStrings = {
+    {TSPA, "TSPA"},
+    {TSPB, "TSPB"},
+};
+
+std::map<ProblemInstance, InitialSolutionType> BestInitialForInstance = {
+    {TSPA, GC},
+    {TSPB, GC},
+};
+
+
+class LocalSearch: public Algo {
+public:
+    SearchType searchType;
+    InitialSolutionType initialSolutionType;
+    InterNeighbourhoodType intraNeighbourhoodType;
+    vector<bool> visited;
+    int nPoints;
+    LocalSearch(SearchType searchType, InitialSolutionType initialSolutionType, InterNeighbourhoodType intraNeighbourhoodType, vector<vector<int>> distances, vector<int> costs, int i)
+        : Algo(distances, costs, i, "LocalSearch"), searchType(searchType), initialSolutionType(initialSolutionType), intraNeighbourhoodType(intraNeighbourhoodType) {
+            this->name += "_" + SearchTypeStrings[searchType];
+            this->name += "_" + InitialSolutionTypeStrings[initialSolutionType];
+            this->name += "_" + InterNeighbourhoodTypeStrings[intraNeighbourhoodType];
+            visited = vector<bool>(distances.size());
+            nPoints = distances.size();
+        }
+
+    int calculate_cost(const vector<int>& solution){
+        int cost = 0;
+        for(int j=0; j<solution.size()-1; j++){
+            cost += this->distances[solution[j]][solution[j+1]];
+            cost+=this->costs[solution[j]];
+        }
+        cost+=this->distances[solution[solution.size()-1]][solution[0]];
+        return cost;
+    }
+
+    Result solve() {
+        vector<int> solution = getInitialSolution(this->initialSolutionType, starting_node);
+        int solutionCost = this->calculate_cost(solution);
+        for(int i=0; i<visited.size(); i++){
+                visited[i] = false;
+        }
+        for(int i=0; i<solution.size(); i++){
+            visited[solution[i]] = true;
+        }
+        while(true){
+            //update visited
+            for(int i=0; i<visited.size(); i++){
+                visited[i] = false;
+            }
+            for(int i=0; i<solution.size(); i++){
+                visited[solution[i]] = true;
+            }
+            shared_ptr<vector<int>> newSolution = search(solution, solutionCost);
+            int newSolutionCost = calculate_cost(*newSolution);
+            /////////////////////////////////////////////////////////////////////////////////////////
+            //caclulate number of shared numbers in solution
+            int shared = 0;
+            bool temp_visited[nPoints];
+            for(int i=0; i<nPoints; i++){
+                temp_visited[i] = false;
+            }
+            for(int i=0; i<newSolution->size(); i++){
+                if(!temp_visited[(*newSolution)[i]]){
+                    shared++;
+                    temp_visited[(*newSolution)[i]] = true;
+                }
+            }
+            if(shared != distances.size()/2){
+                cout << "Solution is not valid" << endl;
+                cout << "Solution cost: " << newSolutionCost << endl;
+                cout << "Solution size: " << newSolution->size() << endl;
+                cout << "shared: " << shared << endl;
+                cout << "Solution: ";
+                for(int i=0; i<newSolution->size(); i++){
+                    cout << (*newSolution)[i] << " ";
+                }
+                cout << endl;
+                throw runtime_error("Solution is not valid");
+            }
+            /////////////////////////////////////////////////////////////////////////////////////////
+            if(newSolutionCost == solutionCost) break;
+            solution = *newSolution;
+            solutionCost = newSolutionCost;
+        }
+        return Result(solutionCost, solutionCost, solutionCost, solution, solution);
+    }
+
+    vector<int> getInitialSolution(InitialSolutionType ist, int i){
+        if(ist == randomAlg){
+            RandomSearch rs = RandomSearch(distances, costs, i);
+            return rs.solve().bestSolution;
+        }
+        if (ist == GC)
+        {
+            GreedyCycle gc = GreedyCycle(distances, costs, i);
+            return gc.solve().bestSolution;
+
+        }
+        if (ist == G2Rw)
+        {
+            Greedy2RegretWieghted g2rw = Greedy2RegretWieghted(distances, costs, i);
+            return g2rw.solve().bestSolution;
+        }
+    }
+
+    shared_ptr<vector<int>> search(vector<int>& currentSolution, int currentSolutionCost){
+        if(searchType == greedy) return greedySearch(currentSolution, currentSolutionCost);
+        return steepestSearch(currentSolution, currentSolutionCost);
+    }
+    shared_ptr<vector<int>> greedySearch(vector<int>& currentSolution, int currentSolutionCost){
+        auto neigbourhoodIterator = neighbourhoodGenerator(currentSolution);
+        while(neigbourhoodIterator.move_next()){
+            auto neighbour = neigbourhoodIterator.current_value();
+            int neighbourCost = calculate_cost(*neighbour);
+            if(neighbourCost < currentSolutionCost){
+                return neighbour;
+            }
+
+        }
+        return make_shared<vector<int>>(currentSolution);
+    }
+
+    shared_ptr<vector<int>> steepestSearch(vector<int>& currentSolution, int currentSolutionCost){
+        auto neigbourhoodIterator = neighbourhoodGenerator(currentSolution);
+        shared_ptr<vector<int>> bestNeighbour = make_shared<vector<int>>(currentSolution);
+        int bestNeighbourCost = currentSolutionCost;
+        while(neigbourhoodIterator.move_next()){
+            auto neighbour = neigbourhoodIterator.current_value();
+            int neighbourCost = calculate_cost(*neighbour);
+            if(neighbourCost < bestNeighbourCost){
+                bestNeighbour = make_shared<vector<int>>(*neighbour);
+                bestNeighbourCost = neighbourCost;
+            }
+
+        }
+        return bestNeighbour;
+    }
+
+    generator<shared_ptr<vector<int>>> neighbourhoodGenerator(vector<int>& currentSolution){
+        vector<NeighbourhoodType> nTypeOrder = {intra, inter};
+        shuffle(nTypeOrder.begin(), nTypeOrder.end(),rng);
+        for(auto nType: nTypeOrder){
+            if(nType == intra){
+                auto intraNeighbourhoodIterator = intraNeighbourhoodGenerator(currentSolution);
+                while(intraNeighbourhoodIterator.move_next()){
+                    co_yield intraNeighbourhoodIterator.current_value();
+                }
+            } else {
+                auto interNeighbourhoodIterator = interNeighbourhoodGenerator(currentSolution);
+                while(interNeighbourhoodIterator.move_next()){
+                    co_yield interNeighbourhoodIterator.current_value();
+                }
+            }
+        }
+
+    }
+
+    generator<shared_ptr<vector<int>>> interNeighbourhoodGenerator(vector<int>& currentSolution){
+        // co_yield currentSolution;
+        shared_ptr<std::vector<int>> neighbour = make_shared<std::vector<int>>(currentSolution);
+        vector<pair<int, int>> moves;
+    
+        for (int i = 0; i < currentSolution.size(); i++) {
+            for (int j = 0; j < costs.size(); j++) {
+                if (!visited[j]) {
+                    moves.push_back({i, j});
+                }
+            }
+        }
+
+        std::shuffle(std::begin(moves), std::end(moves), rng);
+
+        for (const auto& [i, j] : moves) {
+            auto tmp = (*neighbour)[i];
+            (*neighbour)[i] = j;
+            co_yield neighbour;
+            (*neighbour)[i] = tmp; //reversing change to save time copying memory
+        }
+    }
+
+    generator<shared_ptr<vector<int>>> intraNeighbourhoodGenerator(vector<int>& currentSolution){
+        if(intraNeighbourhoodType == twoNode) return intraNodesNeighbourhoodGenerator(currentSolution);
+        return intraEdgesNeighbourhoodGenerator(currentSolution);
+    }
+
+    generator<shared_ptr<vector<int>>> intraNodesNeighbourhoodGenerator(vector<int>& currentSolution){
+        shared_ptr<std::vector<int>> neighbour = make_shared<std::vector<int>>(currentSolution);
+        vector<pair<int, int>> moves;
+    
+        for (int i = 0; i < currentSolution.size(); i++) {
+            for(int j=i+1; j < currentSolution.size(); j++){
+                moves.push_back({i, j});
+            }
+        }
+
+        std::shuffle(std::begin(moves), std::end(moves), rng);
+
+        for (const auto& [i, j] : moves) {
+            auto tmp = (*neighbour)[i];
+            (*neighbour)[i] = (*neighbour)[j];
+            (*neighbour)[j] = tmp;
+            co_yield neighbour;
+            (*neighbour)[j] = (*neighbour)[i]; //reversing change to save time copying memory
+            (*neighbour)[i] = tmp;
+        }
+    }
+    
+    generator<shared_ptr<vector<int>>> intraEdgesNeighbourhoodGenerator(vector<int>& currentSolution){
+        shared_ptr<std::vector<int>> neighbour = make_shared<std::vector<int>>(currentSolution);
+        vector<pair<pair<int, int>, pair<int, int>>> moves;
+        for (int i = 0; i < neighbour->size(); i++) {
+            for (int j = i + 2; j < neighbour->size(); j++) {
+                moves.push_back({{i, i + 1}, {j, j == currentSolution.size() - 1 ? 0 : j + 1}});
+            }
+        }
+        std::shuffle(std::begin(moves), std::end(moves), rng);
+
+        for (const auto& [edge1, edge2] : moves) {
+            if (edge1.second < edge2.second) {
+            reverse(neighbour->begin() + edge1.second, neighbour->begin() + edge2.first + 1);
+            co_yield neighbour;
+            reverse(neighbour->begin() + edge1.second, neighbour->begin() + edge2.first + 1);
+            // to save time copying memory
+            }
+            else if(edge2.second != 0){
+                throw runtime_error("Incorrect edge indices: "  + to_string(edge1.second) + " " + to_string(edge2.second));
+            }
+        }
+    }
+};
+
+vector<vector<int>> read_file(string filename) {
+    vector<vector<int>> result;
+    ifstream file(filename);
+    string line;
+    while (getline(file, line)) {
+        vector<int> row;
+        stringstream ss(line);
+        string cell;
+        while (getline(ss, cell, ';')) {
+            row.push_back(stoi(cell));
+        }
+        result.push_back(row);
+    }
+    return result;
+}
+
+
+vector<vector<int>> calcDistances(vector<vector<int>> data){
+    vector<vector<int>> distances;
+    for (int i = 0; i < data.size(); i++){
+        vector<int> row;
+        for (int j = 0; j < data.size(); j++){
+            int x = data[i][0] - data[j][0];
+            int y = data[i][1] - data[j][1];
+            //round to nearest int
+            float distance = round(sqrt(x*x + y*y));
+            row.push_back(distance);
+        }
+        distances.push_back(row);
+    }
+    return distances;
+}
+
+
+void write_solution_to_file(vector<int> sol, string algo_name, string data_name){
+        // cout << "Writing to: " << algo_name + "_"+ data_name + ".csv" << endl;
+        string filename = "results/" + algo_name + "_"+ data_name + ".csv";
+        ofstream file;
+        file.open(filename);
+        for(int i=0; i<sol.size(); i++){
+            file << sol[i] << endl;
+        }
+        file.close();
+    }
+
+
+
+int main1(){
+
+    string root_path = "../data/";
+    vector<ProblemInstance> problemInstances = {TSPA, TSPB};
+    vector<SearchType> searchTypes = {greedy, steepest};
+    vector<InitialSolutionType> initialSolutionTypes = {randomAlg, GC, G2Rw};
+    vector<InterNeighbourhoodType> interNeighbourhoodTypes = {twoNode,twoEdges};
+
+
+    for(auto problemInstance: problemInstances){
+        string file = root_path + ProblemInstanceStrings[problemInstance] + ".csv";
+        auto data = read_file(file);
+        auto distances = calcDistances(data);
+        vector<int> costs;
+        for(int i=0; i< data.size(); i++){
+            costs.push_back(data[i][2]);
+        }
+        for(auto searchType: searchTypes){
+            for(auto initialSolutionType: initialSolutionTypes){
+                for(auto interNeighbourhoodType: interNeighbourhoodTypes){
+                    Result algoResult = Result(INT32_MAX, 0, 0, vector<int>(), vector<int>());
+                    vector<double> times;
+                    cout<<"Name: "<< LocalSearch(searchType, initialSolutionType, interNeighbourhoodType, distances, costs, 0).name << endl;
+                    cout<<"Problem: "<< ProblemInstanceStrings[problemInstance] << endl;
+                    for(int i=0; i<distances.size(); i++){
+                        LocalSearch ls = LocalSearch(searchType, initialSolutionType, interNeighbourhoodType, distances, costs, i);
+                        clock_t start, end;
+                        start = clock();
+                        vector<int> solution = ls.solve().bestSolution;
+                        end = clock();
+                        double time_taken = double(end - start) / double(CLOCKS_PER_SEC);
+                        int cost = ls.calculate_cost(solution);
+                        if(cost < algoResult.bestCost){
+                            algoResult.bestCost = cost;
+                            algoResult.bestSolution = solution;
+                        }
+                        if(cost > algoResult.worstCost){
+                            algoResult.worstCost = cost;
+                            algoResult.worstSolution = solution;
+                        }
+                        algoResult.averageCost += cost;
+                        times.push_back(time_taken);
+                    }
+                    algoResult.averageCost /= distances.size();
+                    cout << "Best cost: " << algoResult.bestCost << endl;
+                    cout << "Worst cost: " << algoResult.worstCost << endl;
+                    cout << "Average cost: " << algoResult.averageCost << endl;
+                    cout << "Best time: " << *min_element(times.begin(), times.end()) << endl;
+                    cout << "Worst time: " << *max_element(times.begin(), times.end()) << endl;
+                    cout << "Average time: " << accumulate(times.begin(), times.end(), 0.0) / times.size() << endl;
+                    cout << "Best solution: ";
+                    for(int i=0; i<algoResult.bestSolution.size(); i++){
+                        cout << algoResult.bestSolution[i] << " ";
+                    }
+                    cout << endl;
+                    LocalSearch ls = LocalSearch(searchType, initialSolutionType, interNeighbourhoodType, distances, costs, 0);
+                    write_solution_to_file(algoResult.bestSolution, ls.get_name(), ProblemInstanceStrings[problemInstance]);
+                }
+            }
+        }
+
+    }
+}
+
+    Result solveAlgo(InitialSolutionType algo, vector<vector<int>> distances, vector<int> costs, int i){
+        if(algo == randomAlg){
+            return RandomSearch(distances, costs, i).solve();
+        }
+        if (algo == GC)
+        {
+            return GreedyCycle(distances, costs, i).solve();
+        }
+        if (algo == G2Rw)
+        {
+            return Greedy2RegretWieghted(distances, costs, i).solve();
+        }
+        if (algo == NN)
+        {
+            return NearestNeighboursSearch(distances, costs, i).solve();
+        }
+        if (algo == G2R)
+        {
+            return Greedy2Regret(distances, costs, i).solve();
+        }
+    }
+
+    int main2(){
+        string root_path = "../data/";
+        vector<ProblemInstance> problemInstances = {TSPA, TSPB};
+        vector<InitialSolutionType> algos = {randomAlg, GC, G2Rw, NN, G2R};
+
+        for(auto problemInstance: problemInstances){
+            string file = root_path + ProblemInstanceStrings[problemInstance] + ".csv";
+            auto data = read_file(file);
+            auto distances = calcDistances(data);
+            vector<int> costs;
+            for(int i=0; i< data.size(); i++){
+                costs.push_back(data[i][2]);
+            }
+            for(auto algo : algos){
+                Result algoResult = Result(INT32_MAX, 0, 0, vector<int>(), vector<int>());
+                double averageTime = 0;
+                cout<<"Name: "<< InitialSolutionTypeStrings[algo] << endl;
+                cout<<"Problem: "<< ProblemInstanceStrings[problemInstance] << endl;
+                for(int i=0; i<distances.size(); i++){
+                    clock_t start, end;
+                    start = clock();
+                    Result subResult = solveAlgo(algo, distances, costs, i);
+                    end = clock();
+                    vector<int> solution = subResult.bestSolution;
+                    double time_taken = double(end - start) / double(CLOCKS_PER_SEC);
+                    int cost = calculate_cost(solution, distances, costs);
+                    if(cost < algoResult.bestCost){
+                        algoResult.bestCost = cost;
+                        algoResult.bestSolution = solution;
+                    }
+                    if(cost > algoResult.worstCost){
+                        algoResult.worstCost = cost;
+                        algoResult.worstSolution = solution;
+                    }
+                    algoResult.averageCost += cost;
+                    averageTime += time_taken;
+                }
+                algoResult.averageCost /= distances.size();
+                cout << "Best cost: " << algoResult.bestCost << endl;
+                cout << "Worst cost: " << algoResult.worstCost << endl;
+                cout << "Average cost: " << algoResult.averageCost << endl;
+                averageTime /= distances.size();
+                cout << "Average time: " << averageTime << endl;
+                cout << "Best solution: ";
+                for(int i=0; i<algoResult.bestSolution.size(); i++){
+                    cout << algoResult.bestSolution[i] << " ";
+                }
+                cout << endl;
             }
         }
     }
 
-    // if (intraMoveType == "two_edges" || intraMoveType == "both") {
-    //     for (int i = 0; i < n - 1; i++) {
-    //         for (int j = i + 2; j < n; j++) {
-    //             int delta = 0;
-    //             std::vector<int> tempPath = path;
-    //             if (twoEdgesExchange(tempPath, delta, distanceMatrix, i, j)) {
-    //                 if (delta < bestDelta) {
-    //                     bestDelta = delta;
-    //                     moveType = "two_edges_exchange";
-    //                     pos1 = i;
-    //                     pos2 = j;
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
-
-    // // Iterate over all possible inter-route moves
-    // for (int i = 0; i < n; i++) {
-    //     for (int outNode = 0; outNode < distanceMatrix.size(); outNode++) {
-    //         if (std::find(path.begin(), path.end() -1, outNode) != path.end() -1)
-    //             continue; // Node already in the path
-
-    //         int delta = 0;
-    //         std::vector<int> tempPath = path;
-    //         if (interRouteExchange(tempPath, delta, distanceMatrix, costLookupTable, i, outNode)) {
-    //             if (delta < bestDelta) {
-    //                 bestDelta = delta;
-    //                 moveType = "inter_route_swap";
-    //                 pos1 = i;
-    //                 pos2 = outNode;
-    //             }
-    //         }
-    //     }
-    // }
-
-    // Apply the best move found
-    if (bestDelta < 0) { // Improvement found
-        if (moveType == "two_nodes_exchange") {
-            std::swap(path[pos1], path[pos2]);
-        }
-        // else if (moveType == "two_edges_exchange") {
-        //     std::reverse(path.begin() + pos1 + 1, path.begin() + pos2 + 1);
-        // }
-        // else if (moveType == "inter_route_swap") {
-        //     path[pos1] = pos2;
-        // }
-
-        currentCost += bestDelta;
-        std::cout << "currentCost: " << currentCost << std::endl;
-        improvement = true;
+    int main(){
+        main1();
+        main2();
     }
-
-    return improvement;
-}
-
-// Function to perform local search based on method type
-bool performLocalSearch(std::vector<int> &path, int &currentCost, const std::string &searchType, const std::string &intraMoveType, const std::vector<std::vector<int>> &distanceMatrix, const std::vector<int> &costLookupTable, std::mt19937 &rng) {
-    bool improved = false;
-
-    if (searchType == "greedy") {
-        improved = greedyLocalSearch(path, currentCost, intraMoveType, distanceMatrix, costLookupTable, rng);
-    }
-    else if (searchType == "steepest") {
-        improved = steepestLocalSearch(path, currentCost, intraMoveType, distanceMatrix, costLookupTable);
-    }
-
-    return improved;
-}
-
-// Function to run local search until no improvement
-std::vector<int> runLocalSearch(const std::vector<int> &initialPath, const std::string &searchType, const std::string &intraMoveType, const std::vector<std::vector<int>> &distanceMatrix, const std::vector<int> &costLookupTable, std::mt19937 &rng, int &finalCost) {
-    std::vector<int> currentPath = initialPath;
-    int currentCost = calculateTotalCost(currentPath, distanceMatrix, costLookupTable);
-    bool improved = true;
-
-    while (improved) {
-        improved = performLocalSearch(currentPath, currentCost, searchType, intraMoveType, distanceMatrix, costLookupTable, rng);
-    }
-
-    finalCost = currentCost;
-    std::cout << "Final cost: " << finalCost << std::endl;
-    return currentPath;
-}
-
-// Function to perform a single run based on method parameters
-std::vector<int> performSingleRun(int runNumber, const std::string &searchType, const std::string &intraMoveType, const std::string &startType, const std::vector<std::vector<int>> &distanceMatrix, const std::vector<int> &costLookupTable, int k, std::mt19937 &rng, int &finalCost) {
-    std::vector<int> initialPath;
-
-    if (startType == "random") {
-        initialPath = generateRandomSolution(distanceMatrix, costLookupTable, k, rng);
-    }
-    else if (startType == "greedy") {
-        int startNode = runNumber % distanceMatrix.size();
-        initialPath = generateGreedySolution(startNode, distanceMatrix, costLookupTable, k);
-    }
-    else {
-        std::cerr << "Invalid starting solution type: " << startType << std::endl;
-        exit(1);
-    }
-
-    // Run local search
-    std::vector<int> finalPath = runLocalSearch(initialPath, searchType, intraMoveType, distanceMatrix, costLookupTable, rng, finalCost);
-
-    return finalPath;
-}
-
-// Main function
-int main(int argc, char *argv[]) {
-    if (argc < 3) {
-        std::cerr << "Usage: " << argv[0] << " <input_file> <method_type>" << std::endl;
-        std::cerr << "Method types: greedy_two_nodes_random, greedy_two_nodes_greedy, greedy_two_edges_random, greedy_two_edges_greedy, steepest_two_nodes_random, steepest_two_nodes_greedy, steepest_two_edges_random, steepest_two_edges_greedy" << std::endl;
-        std::cerr << "Example: " << argv[0] << " input.csv greedy_two_nodes_random" << std::endl;
-        return 1;
-    }
-
-    std::string input_file = argv[1];
-    std::string method_type = argv[2];
-
-    // Parse method_type to extract searchType, intraMoveType, startType
-    std::string searchType, intraMoveType, startType;
-
-    size_t first_underscore = method_type.find('_');
-    size_t second_underscore = method_type.find('_', first_underscore + 1);
-    size_t third_underscore = method_type.find('_', second_underscore + 1); 
-
-    searchType = method_type.substr(0, first_underscore);
-    intraMoveType = method_type.substr(first_underscore + 1, third_underscore - first_underscore - 1);
-    startType = method_type.substr(third_underscore + 1);
-
-    std::cout << "Search Type: " << searchType << std::endl;
-    std::cout << "Intra Move Type: " << intraMoveType << std::endl;
-    std::cout << "Start Type: " << startType << std::endl;
-
-    // Read data from the file
-    std::vector<Node> data = readCSV("../data/" + input_file);
-    if (data.empty()) {
-        std::cerr << "No data read from the file." << std::endl;
-        return 1;
-    }
-
-    int elements = data.size();
-    int k = std::ceil(elements / 2.0);
-
-    // Get the distance matrix
-    std::vector<std::vector<int>> distanceMatrix = getDistanceMatrix(data);
-
-    // Get the cost lookup table
-    std::vector<int> costLookupTable;
-    for (const auto &node : data) {
-        costLookupTable.push_back(node.cost);
-    }
-
-    // Print the number of nodes
-    std::cout << "Number of nodes: " << elements << std::endl;
-    std::cout << std::string(80, '-') << std::endl;
-
-    // Initialize random number generator
-    std::mt19937 rng(std::random_device{}());
-
-    // Define the number of runs
-    int nRuns = 200;
-
-    // Placeholder for solutions and costs
-    std::vector<std::vector<int>> solutions(nRuns);
-    std::vector<int> totalCosts(nRuns);
-    std::vector<double> runTimes(nRuns, 0.0);
-
-    // Start the runs
-    for (int run = 0; run < nRuns; run++) {
-        auto startTime = std::chrono::high_resolution_clock::now();
-
-        // Perform a single run
-        std::vector<int> finalPath = performSingleRun(run, searchType, intraMoveType, startType, distanceMatrix, costLookupTable, k, rng, totalCosts[run]);
-
-        // Calculate elapsed time
-        auto endTime = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> elapsed = endTime - startTime;
-        runTimes[run] = elapsed.count();
-
-        // Store the solution
-        solutions[run] = finalPath;
-    }
-
-    // Calculate statistics
-    double averageCost = std::accumulate(totalCosts.begin(), totalCosts.end(), 0.0) / nRuns;
-    int minCost = *std::min_element(totalCosts.begin(), totalCosts.end());
-    int maxCost = *std::max_element(totalCosts.begin(), totalCosts.end());
-
-    double averageTime = std::accumulate(runTimes.begin(), runTimes.end(), 0.0) / nRuns;
-    double minTime = *std::min_element(runTimes.begin(), runTimes.end());
-    double maxTime = *std::max_element(runTimes.begin(), runTimes.end());
-
-    // Display statistics
-    std::cout << "Method: " << method_type << std::endl;
-    std::cout << "Average Cost: " << averageCost << std::endl;
-    std::cout << "Minimum Cost: " << minCost << std::endl;
-    std::cout << "Maximum Cost: " << maxCost << std::endl;
-    std::cout << "Average Running Time: " << averageTime << " seconds" << std::endl;
-    std::cout << "Minimum Running Time: " << minTime << " seconds" << std::endl;
-    std::cout << "Maximum Running Time: " << maxTime << " seconds" << std::endl;
-
-    // Dump results to file
-    dumpToFile(input_file, method_type, solutions, totalCosts);
-
-    return 0;
-}
