@@ -1,24 +1,28 @@
 #!/bin/bash
-n=2
+n=4
 
 g++ -std=c++11 a$n.cpp -o a$n
 
 # Define the CSV files and algorithms
 CSV_FILES=("TSPA.csv" "TSPB.csv")
-ALGORITHMS=("greedy" "random" "nn1" "nn2"  "kregret" "w_kregret" "kregret_mod" "w_kregret_mod")
+ALGORITHMS=("cmls_intra_r" "cmls_inter_r" "cmls_intra_g" "cmls_inter_g")
+SN_TYPE=("each")
 
 # Iterate over each CSV file
 for CSV in "${CSV_FILES[@]}"; do
     echo "Processing $CSV..."
     # Iterate over each algorithm
     for ALGO in "${ALGORITHMS[@]}"; do
-        echo "  Running algorithm: $ALGO"
-        
-        # Run the command
-        ./a$n "$CSV" "$ALGO" each
-        
-        # Optionally, add a small delay between runs to avoid overwhelming the system
-        # sleep 1
+        for SN in "${SN_TYPE[@]}"; do
+            echo "  Running algorithm: $ALGO"
+            
+            # Run the command
+            ./a$n "$CSV" "$ALGO" "$SN"
+            
+            # Optionally, add a small delay between runs to avoid overwhelming the system
+            echo "  Completed algorithm: $ALGO"
+            sleep 1
+        done
     done
     echo "Completed processing $CSV."
     echo "----------------------------------------"
