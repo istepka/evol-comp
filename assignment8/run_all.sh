@@ -12,7 +12,7 @@ set -e
 # ---------------------------
 
 # Assignment number (update as needed)
-n=3
+n=8
 
 # C++ source file (update if your source file has a different name)
 SOURCE_FILE="a${n}.cpp"
@@ -56,22 +56,6 @@ echo "Cleaning up by removing the executable '$EXECUTABLE'."
 rm "$EXECUTABLE"
 
 echo "Executable '$EXECUTABLE' removed."
-echo "----------------------------------------"
-
-# ---------------------------
-# Artifact Generation Step
-# ---------------------------
-
-# Check if the Python script exists
-if [[ ! -f "$PYTHON_SCRIPT" ]]; then
-    echo "Error: Python script '$PYTHON_SCRIPT' not found."
-    exit 1
-fi
-
-echo "Generating artifacts using '$PYTHON_SCRIPT'."
-python "$PYTHON_SCRIPT"
-
-echo "Artifact generation completed."
 echo "----------------------------------------"
 
 # ---------------------------

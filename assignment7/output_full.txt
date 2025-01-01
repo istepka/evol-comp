@@ -1,0 +1,120 @@
+Name: LSNS_LSLS_steepest_random_twoEdges
+Problem instance: TSPA
+Try: 0
+Try: 1
+Try: 2
+Try: 3
+Try: 4
+Try: 5
+Try: 6
+Try: 7
+Try: 8
+Try: 9
+Try: 10
+Try: 11
+Try: 12
+Try: 13
+Try: 14
+Try: 15
+Try: 16
+Try: 17
+Try: 18
+Try: 19
+Best cost: 69622
+Worst cost: 71308
+Average cost: 70506
+Best time: 24.3308
+Worst time: 24.3318
+Average time: 24.3314
+Best solution: 177 10 190 4 112 84 184 42 43 116 65 131 149 59 118 51 151 133 162 123 127 70 135 154 180 53 100 26 97 101 86 75 1 152 2 129 92 57 179 145 78 120 44 25 16 171 175 113 56 31 196 81 90 165 119 40 185 55 52 106 178 14 144 49 102 62 9 148 124 94 63 79 80 176 137 23 186 89 183 143 117 0 46 115 139 68 93 140 108 18 22 146 159 193 41 181 34 160 48 54 
+Average iterations number: 24982.4
+Name: LSNS_NOLSLS_steepest_random_twoEdges
+Problem instance: TSPA
+Try: 0
+Try: 1
+Try: 2
+Try: 3
+Try: 4
+Try: 5
+Try: 6
+Try: 7
+Try: 8
+Try: 9
+Try: 10
+Try: 11
+Try: 12
+Try: 13
+Try: 14
+Try: 15
+Try: 16
+Try: 17
+Try: 18
+Try: 19
+Best cost: 69948
+Worst cost: 71446
+Average cost: 70600
+Best time: 24.3308
+Worst time: 24.3309
+Average time: 24.3309
+Best solution: 139 68 140 93 117 143 0 46 115 42 43 116 65 59 118 51 151 162 133 79 63 94 80 176 137 23 183 89 186 15 148 9 62 102 49 14 144 21 7 164 27 90 165 40 185 106 178 52 55 57 129 92 179 145 78 31 56 113 175 171 16 25 44 120 2 152 97 1 101 75 86 26 100 53 180 154 135 70 127 123 112 4 84 184 190 10 177 54 48 160 34 181 146 22 18 108 69 159 193 41 
+Average iterations number: 342611
+Name: LSNS_LSLS_steepest_random_twoEdges
+Problem instance: TSPB
+Try: 0
+Try: 1
+Try: 2
+Try: 3
+Try: 4
+Try: 5
+Try: 6
+Try: 7
+Try: 8
+Try: 9
+Try: 10
+Try: 11
+Try: 12
+Try: 13
+Try: 14
+Try: 15
+Try: 16
+Try: 17
+Try: 18
+Try: 19
+Best cost: 43929
+Worst cost: 47639
+Average cost: 45406
+Best time: 24.3841
+Worst time: 24.3851
+Average time: 24.3846
+Best solution: 4 149 28 20 60 148 47 94 66 179 99 130 95 185 86 166 194 176 113 103 114 137 127 89 163 187 153 81 77 141 91 61 36 177 5 78 175 142 45 80 190 136 73 54 31 193 117 198 156 1 27 38 63 135 122 133 10 90 121 51 147 6 188 169 132 70 3 15 145 13 195 168 139 11 182 138 33 160 104 8 21 82 111 144 29 0 109 35 143 106 124 128 62 18 55 34 170 152 183 140 
+Average iterations number: 25192.2
+Name: LSNS_NOLSLS_steepest_random_twoEdges
+Problem instance: TSPB
+Try: 0
+Try: 1
+Try: 2
+Try: 3
+Try: 4
+Try: 5
+Try: 6
+Try: 7
+Try: 8
+Try: 9
+Try: 10
+Try: 11
+Try: 12
+Try: 13
+Try: 14
+Try: 15
+Try: 16
+Try: 17
+Try: 18
+Try: 19
+Best cost: 43832
+Worst cost: 46985
+Average cost: 45417
+Best time: 24.3841
+Worst time: 24.3842
+Average time: 24.3842
+Best solution: 114 137 127 89 103 163 187 153 81 77 141 91 36 61 21 82 8 104 144 160 33 11 139 138 182 25 177 5 78 175 45 80 190 136 73 193 31 54 117 198 156 1 27 38 63 40 107 133 122 135 131 121 51 90 147 6 188 169 132 70 3 15 145 13 195 168 29 0 109 35 143 106 124 62 18 55 34 170 152 183 140 4 149 28 20 60 148 47 94 66 179 99 130 95 185 86 166 194 176 113 
+Average iterations number: 337476

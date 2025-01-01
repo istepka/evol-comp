@@ -1,0 +1,24 @@
+Problem instance: TSPA
+Search type: steepest
+Initial solution type: random
+Inter neighbourhood type: twoEdges
+Best cost: 73144
+Worst cost: 86186
+Average cost: 77500
+Best time: 0.008808
+Worst time: 0.016324
+Average time: 0.0105722
+Best solution: 25 44 120 78 145 92 57 129 2 152 1 97 26 100 101 75 86 53 180 154 135 70 127 123 162 133 151 51 72 59 116 65 149 112 84 184 190 10 177 104 54 30 48 34 160 43 42 181 195 146 22 199 18 108 69 159 193 41 139 115 198 46 140 93 117 0 143 183 89 186 23 137 176 80 79 63 94 130 148 9 62 102 144 14 49 178 106 52 185 40 119 165 90 81 196 31 113 175 171 16 
+Writing to: LocalSearch_steepest_random_twoEdges_TSPA.csv
+Problem instance: TSPB
+Search type: steepest
+Initial solution type: random
+Inter neighbourhood type: twoEdges
+Best cost: 45868
+Worst cost: 52745
+Average cost: 48377
+Best time: 0.00929
+Worst time: 0.012365
+Average time: 0.0109273
+Best solution: 66 179 99 130 95 185 86 166 194 176 180 113 103 114 137 127 89 163 153 81 77 141 91 79 61 36 5 78 175 80 190 193 31 54 117 198 156 42 1 27 38 63 40 107 100 32 135 122 90 147 6 188 169 132 70 3 15 145 13 195 168 134 118 51 121 25 177 21 82 8 104 33 138 182 139 11 29 0 109 35 144 111 143 106 124 62 18 55 34 170 152 183 140 149 28 20 60 148 47 94 
+Writing to: LocalSearch_steepest_random_twoEdges_TSPB.csv

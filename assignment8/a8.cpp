@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <random>
 #include <cassert>
+#include <unordered_set>
 
 using namespace std;
 
@@ -217,7 +218,7 @@ struct generator {
 
     generator(generator const&) = delete;
     generator(generator&& other) : coro(other.coro) { other.coro = {}; }
-    ~generator() { if (coro) coro.destroy(); }
+    ~generator() { if (coro) { coro.destroy(); } }
 
 private:
     generator(handle_type h) : coro(h) {}
@@ -626,17 +627,19 @@ void write_solution_to_file(vector<int> sol, string algo_name, string data_name)
         file.close();
     }
 
+vector<int> generate_random_solution(int size) {
+    vector<int> solution(size);
+    for(int i = 0; i < size; ++i) {
+        solution[i] = i;
+    }
+    shuffle(solution.begin(), solution.end(), rng);
+    return solution;
+}
 
-
-int main1(){
-
+int main2(){
     string root_path = "../data/";
     vector<ProblemInstance> problemInstances = {TSPA, TSPB};
-    vector<SearchType> searchTypes = {steepest};
-    vector<InitialSolutionType> initialSolutionTypes = {GC};
-    vector<InterNeighbourhoodType> interNeighbourhoodTypes = {
-        twoEdges};
-
+    // Removed algos as we are using LocalSearch directly
 
     for(auto problemInstance: problemInstances){
         string file = root_path + ProblemInstanceStrings[problemInstance] + ".csv";
@@ -646,148 +649,69 @@ int main1(){
         for(int i=0; i< data.size(); i++){
             costs.push_back(data[i][2]);
         }
-        for(auto searchType: searchTypes){
-            for(auto initialSolutionType: initialSolutionTypes){
-                for(auto interNeighbourhoodType: interNeighbourhoodTypes){
-                    Result algoResult = Result(INT32_MAX, 0, 0, vector<int>(), vector<int>());
-                    vector<double> times;
-                    cout<<"Name: "<< LocalSearch(searchType, initialSolutionType, interNeighbourhoodType, distances, costs, 0).name << endl;
-                    cout<<"Problem: "<< ProblemInstanceStrings[problemInstance] << endl;
-                    vector<vector<int>> best_solutions;
-                    for(int i=0; i<distances.size(); i++){
-                        LocalSearch ls = LocalSearch(searchType, initialSolutionType, interNeighbourhoodType, distances, costs, i);
-                        // if localsearch greedy, two edges, initial greedy
-                        
-                        clock_t start, end;
-                        start = clock();
-                        vector<int> solution = ls.solve().bestSolution;
-                        if (searchType == steepest && interNeighbourhoodType == twoEdges && initialSolutionType == GC){
-                            best_solutions.push_back(solution);
-                        }
-                        end = clock();
-                        double time_taken = double(end - start) / double(CLOCKS_PER_SEC);
-                        int cost = ls.calculate_cost(solution);
-                        if(cost < algoResult.bestCost){
-                            algoResult.bestCost = cost;
-                            algoResult.bestSolution = solution;
-                        }
-                        if(cost > algoResult.worstCost){
-                            algoResult.worstCost = cost;
-                            algoResult.worstSolution = solution;
-                        }
-                        algoResult.averageCost += cost;
-                        times.push_back(time_taken);
-                    }
-                    if (searchType == steepest && interNeighbourhoodType == twoEdges && initialSolutionType == GC){
-                        // write solutions to file, each solution in a separate line, separate indices with comma
-                        string filename = LocalSearch(searchType, initialSolutionType, interNeighbourhoodType, distances, costs, 0).name + "_"+ ProblemInstanceStrings[problemInstance] + ".csv";
-                        ofstream file;
-                        file.open(filename);
-                        for(int i=0; i<best_solutions.size(); i++){
-                            for(int j=0; j<best_solutions[i].size(); j++){
-                                file << best_solutions[i][j];
-                                if(j != best_solutions[i].size()-1){
-                                    file << ",";
-                                }
-                            }
-                            file << endl;
-                        }
-                    }   
-                    algoResult.averageCost /= distances.size();
-                    cout << "Best cost: " << algoResult.bestCost << endl;
-                    cout << "Worst cost: " << algoResult.worstCost << endl;
-                    cout << "Average cost: " << algoResult.averageCost << endl;
-                    cout << "Best time: " << *min_element(times.begin(), times.end()) << endl;
-                    cout << "Worst time: " << *max_element(times.begin(), times.end()) << endl;
-                    cout << "Average time: " << accumulate(times.begin(), times.end(), 0.0) / times.size() << endl;
-                    cout << "Best solution: ";
-                    for(int i=0; i<algoResult.bestSolution.size(); i++){
-                        cout << algoResult.bestSolution[i] << " ";
-                    }
-                    cout << endl;
-                    LocalSearch ls = LocalSearch(searchType, initialSolutionType, interNeighbourhoodType, distances, costs, 0);
-                    write_solution_to_file(algoResult.bestSolution, ls.get_name(), ProblemInstanceStrings[problemInstance]);
-                }
+
+        // Initialize LocalSearch parameters
+        SearchType searchType = greedy;
+        InitialSolutionType initialSolutionType = randomAlg;
+        InterNeighbourhoodType neighbourhoodType = twoEdges;
+
+        // Create LocalSearch instance
+        LocalSearch localSearch(searchType, initialSolutionType, neighbourhoodType, distances, costs, 0);
+
+        // Container to store unique local optima
+        vector<Result> localOptima;
+        unordered_set<string> uniqueSolutions;
+
+        for(int i = 0; i < 1000; ++i){
+            // Generate random initial solution
+            vector<int> randomSolution = generate_random_solution(distances.size());
+
+            // Set the starting node
+            localSearch.starting_node = randomSolution[0];
+
+            // Solve to get local optimum
+            Result opt = localSearch.solve();
+
+            // Serialize solution to check uniqueness
+            string serialized;
+            for(auto node : opt.bestSolution){
+                serialized += to_string(node) + ",";
+            }
+
+            if(uniqueSolutions.find(serialized) == uniqueSolutions.end()){
+                uniqueSolutions.insert(serialized);
+                localOptima.push_back(opt);
+            }
+
+            // Optional: Break if enough unique optima are found
+            if(localOptima.size() >= 1000){
+                break;
             }
         }
 
+        // Write local optima to a single file for the current instance
+        std::string filename = ProblemInstanceStrings[problemInstance] + ".txt";
+        std::ofstream outFile(filename);
+        if(outFile.is_open()){
+            for(const auto& opt : localOptima){
+                std::string solution;
+                for(auto node : opt.bestSolution){
+                    solution += std::to_string(node) + ",";
+                }
+                if(!solution.empty()) {
+                    solution.pop_back(); // Remove trailing comma
+                }
+                // Add objective value as the first column
+                outFile << opt.bestCost << "," << solution << "\n";
+            }
+            outFile.close();
+        } else {
+            std::cerr << "Unable to open file: " << filename << std::endl;
+        }
+
+        std::cout << "Generated " << localOptima.size() << " unique local optima for " << ProblemInstanceStrings[problemInstance] << std::endl;
     }
 }
-
-    Result solveAlgo(InitialSolutionType algo, vector<vector<int>> distances, vector<int> costs, int i){
-        if(algo == randomAlg){
-            return RandomSearch(distances, costs, i).solve();
-        }
-        if (algo == GC)
-        {
-            return GreedyCycle(distances, costs, i).solve();
-        }
-        if (algo == G2Rw)
-        {
-            return Greedy2RegretWieghted(distances, costs, i).solve();
-        }
-        if (algo == NN)
-        {
-            return NearestNeighboursSearch(distances, costs, i).solve();
-        }
-        if (algo == G2R)
-        {
-            return Greedy2Regret(distances, costs, i).solve();
-        }
-    }
-
-    int main2(){
-        string root_path = "../data/";
-        vector<ProblemInstance> problemInstances = {TSPA, TSPB};
-        vector<InitialSolutionType> algos = {randomAlg};
-
-        for(auto problemInstance: problemInstances){
-            string file = root_path + ProblemInstanceStrings[problemInstance] + ".csv";
-            auto data = read_file(file);
-            auto distances = calcDistances(data);
-            vector<int> costs;
-            for(int i=0; i< data.size(); i++){
-                costs.push_back(data[i][2]);
-            }
-            for(auto algo : algos){
-                Result algoResult = Result(INT32_MAX, 0, 0, vector<int>(), vector<int>());
-                vector<double> times;
-                cout<<"Name: "<< InitialSolutionTypeStrings[algo] << endl;
-                cout<<"Problem: "<< ProblemInstanceStrings[problemInstance] << endl;
-                for(int i=0; i<distances.size(); i++){
-                    clock_t start, end;
-                    start = clock();
-                    Result subResult = solveAlgo(algo, distances, costs, i);
-                    end = clock();
-                    vector<int> solution = subResult.bestSolution;
-                    double time_taken = double(end - start) / double(CLOCKS_PER_SEC);
-                    int cost = calculate_cost(solution, distances, costs);
-                    if(cost < algoResult.bestCost){
-                        algoResult.bestCost = cost;
-                        algoResult.bestSolution = solution;
-                    }
-                    if(cost > algoResult.worstCost){
-                        algoResult.worstCost = cost;
-                        algoResult.worstSolution = solution;
-                    }
-                    algoResult.averageCost += cost;
-                    times.push_back(time_taken);
-                }
-                algoResult.averageCost /= distances.size();
-                cout << "Best cost: " << algoResult.bestCost << endl;
-                cout << "Worst cost: " << algoResult.worstCost << endl;
-                cout << "Average cost: " << algoResult.averageCost << endl;
-                cout << "Best time: " << *min_element(times.begin(), times.end()) << endl;
-                cout << "Worst time: " << *max_element(times.begin(), times.end()) << endl;
-                cout << "Average time: " << accumulate(times.begin(), times.end(), 0.0) / times.size() << endl;
-                cout << "Best solution: ";
-                for(int i=0; i<algoResult.bestSolution.size(); i++){
-                    cout << algoResult.bestSolution[i] << " ";
-                }
-                cout << endl;
-            }
-        }
-    }
 
     int main(){
         //main1();

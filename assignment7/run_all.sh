@@ -12,7 +12,7 @@ set -e
 # ---------------------------
 
 # Assignment number (update as needed)
-n=3
+n=7
 
 # C++ source file (update if your source file has a different name)
 SOURCE_FILE="a${n}.cpp"
@@ -45,7 +45,7 @@ echo "----------------------------------------"
 # ---------------------------
 
 # steer the output to output.txt
-./"$EXECUTABLE" "$CSV" "$METHOD"
+./"$EXECUTABLE" "$CSV" "$METHOD" > output.txt
 
 
 # ---------------------------
